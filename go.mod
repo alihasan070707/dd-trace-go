@@ -209,7 +209,7 @@ require (
 
 require (
 	github.com/DataDog/appsec-internal-go v1.0.0
-	github.com/DataDog/go-libddwaf v1.1.0
+	github.com/DataDog/go-libddwaf v1.1.1-0.20230412194014-7998e6de550d
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/microsoft/go-mssqldb v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
@@ -220,6 +220,7 @@ require (
 
 require (
 	github.com/DataDog/go-tuf v0.3.0--fix-localmeta-fork // indirect
+	github.com/ebitengine/purego v0.4.0-alpha.1.0.20230330151547-bfe9e39de4ce // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
