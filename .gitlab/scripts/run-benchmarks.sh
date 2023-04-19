@@ -25,7 +25,6 @@ bench_loop_x10 "${ARTIFACTS_DIR}/pr_bench.txt"
 
 if [ ! -z "$BASELINE_BRANCH" ]; then
   cd "$CANDIDATE_SRC"
-  BASELINE_COMMIT_SHA=$(git merge-base "origin/$BASELINE_BRANCH" "origin/$CANDIDATE_BRANCH")
 
   # Clone baseline release
   git clone --branch "$BASELINE_BRANCH" https://github.com/DataDog/dd-trace-go/ "$BASELINE_SRC" && \
