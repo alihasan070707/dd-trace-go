@@ -226,6 +226,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/outcaste-io/ristretto v0.2.1 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	go.opentelemetry.io/otel/metric v0.37.0 // indirect
 	k8s.io/klog/v2 v2.30.0 // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
