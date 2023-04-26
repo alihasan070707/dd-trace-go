@@ -411,8 +411,10 @@ func (s *span) setMetric(key string, v float64) {
 // Finish closes this Span (but not its children) providing the duration
 // of its part of the tracing session.
 func (s *span) Finish(opts ...ddtrace.FinishOption) {
-	t := now()
+t := now()
+	log.Debug("in Finish()")
 	if len(opts) > 0 {
+		log.Debug("length of options greater than 0")
 		cfg := ddtrace.FinishConfig{
 			NoDebugStack: s.noDebugStack,
 		}
@@ -423,6 +425,7 @@ func (s *span) Finish(opts ...ddtrace.FinishOption) {
 			t = cfg.FinishTime.UnixNano()
 		}
 		if cfg.Error != nil {
+			log.Debug("config error is not nil")
 			s.Lock()
 			s.setTagError(cfg.Error, errorConfig{
 				noDebugStack: cfg.NoDebugStack,
@@ -433,8 +436,12 @@ func (s *span) Finish(opts ...ddtrace.FinishOption) {
 		}
 	}
 	if s.taskEnd != nil {
+		log.Debug("in task end")
+
 		s.taskEnd()
 	}
+	log.Debug("calling inner finish")
+
 	s.finish(t)
 
 	if s.pprofCtxRestore != nil {
@@ -459,12 +466,17 @@ func (s *span) SetOperationName(operationName string) {
 }
 
 func (s *span) finish(finishTime int64) {
+	log.Debug("waiting for lock")
+
 	s.Lock()
+	log.Debug("got the lock")
+
 	defer s.Unlock()
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
 	if s.finished {
+		log.Debug("already finished")
 		// already finished
 		return
 	}
@@ -479,7 +491,10 @@ func (s *span) finish(finishTime int64) {
 	keep := true
 	if t, ok := internal.GetGlobalTracer().(*tracer); ok {
 		// we have an active tracer
+		log.Debug("have an active tracer")
 		if t.config.canComputeStats() && shouldComputeStats(s) {
+			log.Debug("in shouldComputeStats")
+
 			// the agent supports computed stats
 			select {
 			case t.stats.In <- newAggregableSpan(s, t.obfuscator):
@@ -487,13 +502,19 @@ func (s *span) finish(finishTime int64) {
 			default:
 				log.Error("Stats channel full, disregarding span.")
 			}
+			log.Debug("out shouldComputeStats")
+
 		}
 		if t.config.canDropP0s() {
+			log.Debug("in canDropP0s")
+
 			// the agent supports dropping p0's in the client
 			keep = shouldKeep(s)
 		}
 	}
 	if keep {
+		log.Debug("in keep")
+
 		// a single kept span keeps the whole trace.
 		s.context.trace.keep()
 	}
@@ -502,6 +523,8 @@ func (s *span) finish(finishTime int64) {
 		log.Debug("Finished Span: %v, Operation: %s, Resource: %s, Tags: %v, %v",
 			s, s.Name, s.Resource, s.Meta, s.Metrics)
 	}
+	log.Debug("finished success")
+
 	s.context.finish()
 }
 
