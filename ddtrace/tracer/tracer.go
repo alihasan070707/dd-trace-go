@@ -27,6 +27,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/obfuscate"
 )
 
+var DebugSpanInfos = map[uint64]map[string]string{}
+var DebugSpanInfoLock = sync.RWMutex{}
+
 var _ ddtrace.Tracer = (*tracer)(nil)
 
 // tracer creates, buffers and submits Spans which are used to time blocks of
@@ -513,6 +516,11 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 			span.Service = newSvc
 		}
 	}
+
+	DebugSpanInfoLock.Lock()
+	defer DebugSpanInfoLock.Unlock()
+	DebugSpanInfos[span.SpanID] = span.Meta
+
 	if log.DebugEnabled() {
 		// avoid allocating the ...interface{} argument if debug logging is disabled
 		log.Debug("Started Span: %v, Operation: %s, Resource: %s, Tags: %v, %v",

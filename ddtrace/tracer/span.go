@@ -494,8 +494,21 @@ func (s *span) finish(finishTime int64) {
 	}
 	if keep {
 		// a single kept span keeps the whole trace.
+		log.Debug("keeping span %d", s.SpanID)
 		s.context.trace.keep()
 	}
+
+	if log.DebugEnabled() {
+		// avoid allocating the ...interface{} argument if debug logging is disabled
+		log.Debug("Finished Span: %v, Operation: %s, Resource: %s, Tags: %v, %v",
+			s, s.Name, s.Resource, s.Meta, s.Metrics)
+	}
+
+	DebugSpanInfoLock.Lock()
+	defer DebugSpanInfoLock.Unlock()
+
+	delete(DebugSpanInfos, s.SpanID)
+
 	s.context.finish()
 }
 
