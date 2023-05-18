@@ -28,7 +28,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/obfuscate"
 )
 
-var DebugSpanInfos = map[uint64]map[string]string{}
+var DebugSpanInfos = map[uint64]span{}
 var DebugSpanInfoLock = sync.RWMutex{}
 
 var _ ddtrace.Tracer = (*tracer)(nil)
@@ -461,7 +461,6 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 		span.TraceID = context.traceID
 		span.ParentID = context.spanID
 		log.Debug("span context not nil %s", span.TraceID, span.ParentID)
-
 		if p, ok := context.samplingPriority(); ok {
 			span.setMetric(keySamplingPriority, float64(p))
 		}
@@ -478,6 +477,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 			}
 		}
 	}
+
 	span.context = newSpanContext(span, context)
 	span.setMetric(ext.Pid, float64(t.pid))
 	span.setMeta("language", "go")
@@ -526,7 +526,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	defer DebugSpanInfoLock.Unlock()
 	span.Meta["start"] = fmt.Sprintf("%d", span.Start)
 
-	DebugSpanInfos[span.SpanID] = span.Meta
+	DebugSpanInfos[span.SpanID] = *span
 
 	if log.DebugEnabled() {
 		// avoid allocating the ...interface{} argument if debug logging is disabled
