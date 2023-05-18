@@ -52,11 +52,11 @@ func StartSpanFromContext(ctx context.Context, operationName string, opts ...Sta
 	}
 	optsLocal = append(optsLocal, withContext(ctx))
 	s := StartSpan(operationName, optsLocal...)
-	if span, ok := s.(*span); ok && span.pprofCtxActive != nil {
+	if span, ok := s.(*span); ok && span.PpprofCtxActive != nil {
 		// If pprof labels were applied for this span, use the derived ctx that
 		// includes them. Otherwise a child of this span wouldn't be able to
 		// correctly restore the labels of its parent when it finishes.
-		ctx = span.pprofCtxActive
+		ctx = span.PpprofCtxActive
 	}
 	return s, ContextWithSpan(ctx, s)
 }

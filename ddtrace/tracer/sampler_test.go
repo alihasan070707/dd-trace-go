@@ -387,7 +387,7 @@ func TestRulesSampler(t *testing.T) {
 	}
 	makeFinishedSpan := func(op string, svc string) *span {
 		s := newSpan(op, svc, "", random.Uint64(), random.Uint64(), 0)
-		s.finished = true
+		s.FFinished = true
 		return s
 	}
 	t.Run("no-rules", func(t *testing.T) {

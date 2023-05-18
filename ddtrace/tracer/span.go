@@ -75,12 +75,12 @@ type span struct {
 	ParentID uint64             `msg:"parent_id"`         // identifier of the span's direct parent
 	Error    int32              `msg:"error"`             // error status of the span; 0 means no errors
 
-	noDebugStack bool         `msg:"-"` // disables debug stack traces
-	finished     bool         `msg:"-"` // true if the span has been submitted to a tracer.
-	context      *spanContext `msg:"-"` // span propagation context
+	NoDebugStack bool         // disables debug stack traces
+	FFinished    bool         // true if the span has been submitted to a tracer.
+	Ccontext     *spanContext // span propagation context
 
-	pprofCtxActive  context.Context `msg:"-"` // contains pprof.WithLabel labels to tell the profiler more about this span
-	pprofCtxRestore context.Context `msg:"-"` // contains pprof.WithLabel labels of the parent span (if any) that need to be restored when this span finishes
+	PpprofCtxActive  context.Context // contains pprof.WithLabel labels to tell the profiler more about this span
+	PpprofCtxRestore context.Context // contains pprof.WithLabel labels of the parent span (if any) that need to be restored when this span finishes
 
 	taskEnd func() // ends execution tracer (runtime/trace) task, if started
 }
@@ -88,19 +88,19 @@ type span struct {
 // Context yields the SpanContext for this Span. Note that the return
 // value of Context() is still valid after a call to Finish(). This is
 // called the span context and it is different from Go's context.
-func (s *span) Context() ddtrace.SpanContext { return s.context }
+func (s *span) Context() ddtrace.SpanContext { return s.Ccontext }
 
 // SetBaggageItem sets a key/value pair as baggage on the span. Baggage items
 // are propagated down to descendant spans and injected cross-process. Use with
 // care as it adds extra load onto your tracing layer.
 func (s *span) SetBaggageItem(key, val string) {
-	s.context.setBaggageItem(key, val)
+	s.Ccontext.setBaggageItem(key, val)
 }
 
 // BaggageItem gets the value for a baggage item given its key. Returns the
 // empty string if the value isn't found in this Span.
 func (s *span) BaggageItem(key string) string {
-	return s.context.baggageItem(key)
+	return s.Ccontext.baggageItem(key)
 }
 
 // SetTag adds a set of key/value metadata to the span.
@@ -110,13 +110,13 @@ func (s *span) SetTag(key string, value interface{}) {
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
-	if s.finished {
+	if s.FFinished {
 		return
 	}
 	switch key {
 	case ext.Error:
 		s.setTagError(value, errorConfig{
-			noDebugStack: s.noDebugStack,
+			noDebugStack: s.NoDebugStack,
 		})
 		return
 	}
@@ -125,15 +125,15 @@ func (s *span) SetTag(key string, value interface{}) {
 		return
 	}
 	if v, ok := value.(string); ok {
-		if key == ext.ResourceName && s.pprofCtxActive != nil && spanResourcePIISafe(s) {
+		if key == ext.ResourceName && s.PpprofCtxActive != nil && spanResourcePIISafe(s) {
 			// If the user overrides the resource name for the span,
 			// update the endpoint label for the runtime profilers.
 			//
 			// We don't change s.pprofCtxRestore since that should
 			// stay as the original parent span context regardless
 			// of what we change at a lower level.
-			s.pprofCtxActive = pprof.WithLabels(s.pprofCtxActive, pprof.Labels(traceprof.TraceEndpoint, v))
-			pprof.SetGoroutineLabels(s.pprofCtxActive)
+			s.PpprofCtxActive = pprof.WithLabels(s.PpprofCtxActive, pprof.Labels(traceprof.TraceEndpoint, v))
+			pprof.SetGoroutineLabels(s.PpprofCtxActive)
 		}
 		s.setMeta(key, v)
 		return
@@ -182,13 +182,13 @@ func (s *span) Root() Span {
 // when internal usage requires it (to avoid type assertions from Root's return
 // value).
 func (s *span) root() *span {
-	if s == nil || s.context == nil {
+	if s == nil || s.Ccontext == nil {
 		return nil
 	}
-	if s.context.trace == nil {
+	if s.Ccontext.trace == nil {
 		return nil
 	}
-	return s.context.trace.root
+	return s.Ccontext.trace.root
 }
 
 // SetUser associates user information to the current trace which the
@@ -202,13 +202,13 @@ func (s *span) SetUser(id string, opts ...UserMonitoringOption) {
 		fn(&cfg)
 	}
 	root := s.root()
-	trace := root.context.trace
+	trace := root.Ccontext.trace
 	root.Lock()
 	defer root.Unlock()
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
-	if root.finished {
+	if root.FFinished {
 		return
 	}
 	if cfg.PropagateID {
@@ -216,12 +216,12 @@ func (s *span) SetUser(id string, opts ...UserMonitoringOption) {
 		delete(root.Meta, keyUserID)
 		idenc := base64.StdEncoding.EncodeToString([]byte(id))
 		trace.setPropagatingTag(keyPropagatedUserID, idenc)
-		s.context.updated = true
+		s.Ccontext.updated = true
 	} else {
 		// Unset the propagated user ID so that a propagated user ID coming from upstream won't be propagated anymore.
 		trace.unsetPropagatingTag(keyPropagatedUserID)
 		if _, ok := trace.propagatingTags[keyPropagatedUserID]; ok {
-			s.context.updated = true
+			s.Ccontext.updated = true
 		}
 		delete(root.Meta, keyPropagatedUserID)
 	}
@@ -246,11 +246,11 @@ func (s *span) setSamplingPriorityLocked(priority int, sampler samplernames.Samp
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
-	if s.finished {
+	if s.FFinished {
 		return
 	}
 	s.setMetric(keySamplingPriority, float64(priority))
-	s.context.setSamplingPriority(priority, sampler)
+	s.Ccontext.setSamplingPriority(priority, sampler)
 }
 
 // setTagError sets the error tag. It accounts for various valid scenarios.
@@ -260,18 +260,18 @@ func (s *span) setTagError(value interface{}, cfg errorConfig) {
 		if yes {
 			if s.Error == 0 {
 				// new error
-				atomic.AddInt32(&s.context.errors, 1)
+				atomic.AddInt32(&s.Ccontext.errors, 1)
 			}
 			s.Error = 1
 		} else {
 			if s.Error > 0 {
 				// flip from active to inactive
-				atomic.AddInt32(&s.context.errors, -1)
+				atomic.AddInt32(&s.Ccontext.errors, -1)
 			}
 			s.Error = 0
 		}
 	}
-	if s.finished {
+	if s.FFinished {
 		return
 	}
 	switch v := value.(type) {
@@ -413,7 +413,7 @@ func (s *span) Finish(opts ...ddtrace.FinishOption) {
 	t := now()
 	if len(opts) > 0 {
 		cfg := ddtrace.FinishConfig{
-			NoDebugStack: s.noDebugStack,
+			NoDebugStack: s.NoDebugStack,
 		}
 		for _, fn := range opts {
 			fn(&cfg)
@@ -436,10 +436,10 @@ func (s *span) Finish(opts ...ddtrace.FinishOption) {
 	}
 	s.finish(t)
 
-	if s.pprofCtxRestore != nil {
+	if s.PpprofCtxRestore != nil {
 		// Restore the labels of the parent span so any CPU samples after this
 		// point are attributed correctly.
-		pprof.SetGoroutineLabels(s.pprofCtxRestore)
+		pprof.SetGoroutineLabels(s.PpprofCtxRestore)
 	}
 }
 
@@ -450,7 +450,7 @@ func (s *span) SetOperationName(operationName string) {
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
-	if s.finished {
+	if s.FFinished {
 		// already finished
 		return
 	}
@@ -463,7 +463,7 @@ func (s *span) finish(finishTime int64) {
 	// We don't lock spans when flushing, so we could have a data race when
 	// modifying a span as it's being flushed. This protects us against that
 	// race, since spans are marked `finished` before we flush them.
-	if s.finished {
+	if s.FFinished {
 		// already finished
 		return
 	}
@@ -473,7 +473,7 @@ func (s *span) finish(finishTime int64) {
 	if s.Duration < 0 {
 		s.Duration = 0
 	}
-	s.finished = true
+	s.FFinished = true
 
 	keep := true
 	if t, ok := internal.GetGlobalTracer().(*tracer); ok {
@@ -495,7 +495,7 @@ func (s *span) finish(finishTime int64) {
 	if keep {
 		// a single kept span keeps the whole trace.
 		log.Debug("keeping span %d", s.SpanID)
-		s.context.trace.keep()
+		s.Ccontext.trace.keep()
 	}
 
 	if log.DebugEnabled() {
@@ -509,7 +509,7 @@ func (s *span) finish(finishTime int64) {
 
 	delete(DebugSpanInfos, s.SpanID)
 
-	s.context.finish()
+	s.Ccontext.finish()
 }
 
 // newAggregableSpan creates a new summary for the span s, within an application
@@ -566,11 +566,11 @@ func obfuscatedResource(o *obfuscate.Obfuscator, typ, resource string) string {
 // shouldKeep reports whether the trace should be kept.
 // a single span being kept implies the whole trace being kept.
 func shouldKeep(s *span) bool {
-	if p, ok := s.context.samplingPriority(); ok && p > 0 {
+	if p, ok := s.Ccontext.samplingPriority(); ok && p > 0 {
 		// positive sampling priorities stay
 		return true
 	}
-	if atomic.LoadInt32(&s.context.errors) > 0 {
+	if atomic.LoadInt32(&s.Ccontext.errors) > 0 {
 		// traces with any span containing an error get kept
 		return true
 	}

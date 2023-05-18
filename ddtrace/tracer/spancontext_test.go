@@ -37,13 +37,13 @@ func TestNewSpanContextPushError(t *testing.T) {
 	tp.Ignore("appsec: ", telemetry.LogPrefix)
 	_, _, _, stop := startTestTracer(t, WithLogger(tp), WithLambdaMode(true))
 	defer stop()
-	parent := newBasicSpan("test1")                  // 1st span in trace
-	parent.context.trace.push(newBasicSpan("test2")) // 2nd span in trace
+	parent := newBasicSpan("test1")                   // 1st span in trace
+	parent.Ccontext.trace.push(newBasicSpan("test2")) // 2nd span in trace
 	child := newSpan("child", "", "", 0, 0, 0)
 
 	// new context having a parent with a trace of two spans.
 	// One more should overflow.
-	child.context = newSpanContext(child, parent.context)
+	child.Ccontext = newSpanContext(child, parent.Ccontext)
 
 	log.Flush()
 	assert.Contains(t, tp.Logs()[0], "ERROR: trace buffer full (2)")
@@ -124,7 +124,7 @@ func TestSpanTracePushOne(t *testing.T) {
 
 	traceID := random.Uint64()
 	root := newSpan("name1", "a-service", "a-resource", traceID, traceID, 0)
-	trace := root.context.trace
+	trace := root.Ccontext.trace
 
 	assert.Len(trace.spans, 1)
 	assert.Equal(root, trace.spans[0], "the span is the one pushed before")
@@ -156,7 +156,7 @@ func TestSpanTracePushNoFinish(t *testing.T) {
 
 	traceID := random.Uint64()
 	root := newSpan("name1", "a-service", "a-resource", traceID, traceID, 0)
-	root.context.trace = buffer
+	root.Ccontext.trace = buffer
 
 	buffer.push(root)
 	assert.Len(buffer.spans, 1, "there is one span in the buffer")
@@ -188,7 +188,7 @@ func TestSpanTracePushSeveral(t *testing.T) {
 	trace := []*span{root, span2, span3, span3a}
 
 	for i, span := range trace {
-		span.context.trace = buffer
+		span.Ccontext.trace = buffer
 		buffer.push(span)
 		assert.Len(buffer.spans, i+1, "there is one more span in the buffer")
 		assert.Equal(span, buffer.spans[i], "the span is the one pushed before")

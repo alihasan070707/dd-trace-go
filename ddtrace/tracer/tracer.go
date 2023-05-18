@@ -360,7 +360,7 @@ type finishedTrace struct {
 // sampleFinishedTrace applies single-span sampling to the provided trace, which is considered to be finished.
 func (t *tracer) sampleFinishedTrace(info *finishedTrace) {
 	if len(info.spans) > 0 {
-		if p, ok := info.spans[0].context.samplingPriority(); ok && p > 0 {
+		if p, ok := info.spans[0].Ccontext.samplingPriority(); ok && p > 0 {
 			// The trace is kept, no need to run single span sampling rules.
 			return
 		}
@@ -425,7 +425,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 				// Inherit the context.Context from parent span if it was propagated
 				// using ChildOf() rather than StartSpanFromContext(), see
 				// applyPPROFLabels() below.
-				pprofContext = ctx.span.pprofCtxActive
+				pprofContext = ctx.span.PpprofCtxActive
 			}
 		}
 	}
@@ -451,7 +451,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 		SpanID:       id,
 		TraceID:      id,
 		Start:        startTime,
-		noDebugStack: t.config.noDebugStack,
+		NoDebugStack: t.config.noDebugStack,
 	}
 	if t.config.hostname != "" {
 		span.setMeta(keyHostname, t.config.hostname)
@@ -478,7 +478,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 		}
 	}
 
-	span.context = newSpanContext(span, context)
+	span.Ccontext = newSpanContext(span, context)
 	span.setMetric(ext.Pid, float64(t.pid))
 	span.setMeta("language", "go")
 
@@ -508,7 +508,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	if t.config.env != "" {
 		span.setMeta(ext.Environment, t.config.env)
 	}
-	if _, ok := span.context.samplingPriority(); !ok {
+	if _, ok := span.Ccontext.samplingPriority(); !ok {
 		// if not already sampled or a brand new trace, sample it
 		t.sample(span)
 	}
@@ -570,9 +570,9 @@ func (t *tracer) applyPPROFLabels(ctx gocontext.Context, span *span) {
 		}
 	}
 	if len(labels) > 0 {
-		span.pprofCtxRestore = ctx
-		span.pprofCtxActive = pprof.WithLabels(ctx, pprof.Labels(labels...))
-		pprof.SetGoroutineLabels(span.pprofCtxActive)
+		span.PpprofCtxRestore = ctx
+		span.PpprofCtxActive = pprof.WithLabels(ctx, pprof.Labels(labels...))
+		pprof.SetGoroutineLabels(span.PpprofCtxActive)
 	}
 }
 
@@ -612,13 +612,13 @@ const sampleRateMetricKey = "_sample_rate"
 
 // Sample samples a span with the internal sampler.
 func (t *tracer) sample(span *span) {
-	if _, ok := span.context.samplingPriority(); ok {
+	if _, ok := span.Ccontext.samplingPriority(); ok {
 		// sampling decision was already made
 		return
 	}
 	sampler := t.config.sampler
 	if !sampler.Sample(span) {
-		span.context.trace.drop()
+		span.Ccontext.trace.drop()
 		return
 	}
 	if rs, ok := sampler.(RateSampler); ok && rs.Rate() < 1 {
