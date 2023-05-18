@@ -7,6 +7,7 @@ package tracer
 
 import (
 	gocontext "context"
+	"fmt"
 	"os"
 	"runtime/pprof"
 	rt "runtime/trace"
@@ -405,6 +406,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	for _, fn := range options {
 		fn(&opts)
 	}
+
 	var startTime int64
 	if opts.StartTime.IsZero() {
 		startTime = now()
@@ -416,6 +418,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	// not nil when using StartSpanFromContext()
 	pprofContext := opts.Context
 	if opts.Parent != nil {
+		log.Debug("parent not nil %s", opts.Parent.SpanID())
 		if ctx, ok := opts.Parent.(*spanContext); ok {
 			context = ctx
 			if pprofContext == nil && ctx.span != nil {
@@ -457,6 +460,8 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 		// this is a child span
 		span.TraceID = context.traceID
 		span.ParentID = context.spanID
+		log.Debug("span context not nil %s", span.TraceID, span.ParentID)
+
 		if p, ok := context.samplingPriority(); ok {
 			span.setMetric(keySamplingPriority, float64(p))
 		}
@@ -519,6 +524,8 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 
 	DebugSpanInfoLock.Lock()
 	defer DebugSpanInfoLock.Unlock()
+	span.Meta["start"] = fmt.Sprintf("%d", span.Start)
+
 	DebugSpanInfos[span.SpanID] = span.Meta
 
 	if log.DebugEnabled() {

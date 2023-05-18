@@ -55,6 +55,8 @@ func newSpanContext(span *span, parent *spanContext) *spanContext {
 		span:    span,
 	}
 	if parent != nil {
+		log.Debug("newSpanContext parent is nil")
+
 		context.trace = parent.trace
 		context.origin = parent.origin
 		context.errors = parent.errors
@@ -64,9 +66,12 @@ func newSpanContext(span *span, parent *spanContext) *spanContext {
 		})
 	}
 	if context.trace == nil {
+		log.Debug("newSpanContext context trace is nil")
 		context.trace = newTrace()
 	}
 	if context.trace.root == nil {
+		log.Debug("newSpanContext context.trace.root trace is nil")
+
 		// first span in the trace can safely be assumed to be the root
 		context.trace.root = span
 	}
