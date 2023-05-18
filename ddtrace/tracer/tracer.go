@@ -6,6 +6,7 @@
 package tracer
 
 import (
+	"context"
 	gocontext "context"
 	"fmt"
 	"os"
@@ -28,8 +29,34 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/obfuscate"
 )
 
-var DebugSpanInfos = map[uint64]span{}
+var DebugSpanInfos = map[uint64]spanCpy{}
 var DebugSpanInfoLock = sync.RWMutex{}
+
+type spanCpy struct {
+	sync.RWMutex `msg:"-"` // all fields are protected by this RWMutex
+
+	Name     string             `msg:"name"`              // operation name
+	Service  string             `msg:"service"`           // service name (i.e. "grpc.server", "http.request")
+	Resource string             `msg:"resource"`          // resource name (i.e. "/user?id=123", "SELECT * FROM users")
+	Type     string             `msg:"type"`              // protocol associated with the span (i.e. "web", "db", "cache")
+	Start    int64              `msg:"start"`             // span start time expressed in nanoseconds since epoch
+	Duration int64              `msg:"duration"`          // duration of the span expressed in nanoseconds
+	Meta     map[string]string  `msg:"meta,omitempty"`    // arbitrary map of metadata
+	Metrics  map[string]float64 `msg:"metrics,omitempty"` // arbitrary map of numeric metrics
+	SpanID   uint64             `msg:"span_id"`           // identifier of this span
+	TraceID  uint64             `msg:"trace_id"`          // identifier of the root span
+	ParentID uint64             `msg:"parent_id"`         // identifier of the span's direct parent
+	Error    int32              `msg:"error"`             // error status of the span; 0 means no errors
+
+	NoDebugStack bool         `msg:"-"` // disables debug stack traces
+	Finished     bool         `msg:"-"` // true if the span has been submitted to a tracer.
+	Context      *spanContext `msg:"-"` // span propagation context
+
+	PprofCtxActive  context.Context `msg:"-"` // contains pprof.WithLabel labels to tell the profiler more about this span
+	PprofCtxRestore context.Context `msg:"-"` // contains pprof.WithLabel labels of the parent span (if any) that need to be restored when this span finishes
+
+	TaskEnd func() // ends execution tracer (runtime/trace) task, if started
+}
 
 var _ ddtrace.Tracer = (*tracer)(nil)
 
@@ -526,7 +553,29 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	defer DebugSpanInfoLock.Unlock()
 	span.Meta["start"] = fmt.Sprintf("%d", span.Start)
 
-	DebugSpanInfos[span.SpanID] = *span
+	cpy := spanCpy{
+		Name:     span.Name,     // operation name
+		Service:  span.Service,  // service name (i.e. "grpc.server", "http.request")
+		Resource: span.Resource, // resource name (i.e. "/user?id=123", "SELECT * FROM users")
+		Type:     span.Type,     // protocol associated with the span (i.e. "web", "db", "cache")
+		Start:    span.Start,    // span start time expressed in nanoseconds since epoch
+		Duration: span.Duration, // duration of the span expressed in nanoseconds
+		Meta:     span.Meta,     // arbitrary map of metadata
+		Metrics:  span.Metrics,  // arbitrary map of numeric metrics
+		SpanID:   span.SpanID,   // identifier of this span
+		TraceID:  span.TraceID,  // identifier of the root span
+		ParentID: span.ParentID, // identifier of the span's direct parent
+		Error:    span.Error,    // error status of the span; 0 means no errors
+
+		NoDebugStack: span.noDebugStack, // disables debug stack traces
+		Finished:     span.finished,     // true if the span has been submitted to a tracer.
+		Context:      span.context,      // span propagation context
+
+		PprofCtxActive:  span.pprofCtxActive,  // contains pprof.WithLabel labels to tell the profiler more about this span
+		PprofCtxRestore: span.pprofCtxRestore, // contains pprof.WithLabel labels of the parent span (if any) that need to be restored when this span finishes
+
+	}
+	DebugSpanInfos[span.SpanID] = cpy
 
 	if log.DebugEnabled() {
 		// avoid allocating the ...interface{} argument if debug logging is disabled
