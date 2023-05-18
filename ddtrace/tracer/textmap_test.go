@@ -102,7 +102,7 @@ func TestTextMapPropagatorErrors(t *testing.T) {
 	assert.Equal(ErrInvalidSpanContext, err)
 	err = propagator.Inject(&spanContext{}, TextMapCarrier(map[string]string{}))
 	assert.Equal(ErrInvalidSpanContext, err) // no traceID and spanID
-	err = propagator.Inject(&spanContext{traceID: 1}, TextMapCarrier(map[string]string{}))
+	err = propagator.Inject(&spanContext{TtraceID: 1}, TextMapCarrier(map[string]string{}))
 	assert.Equal(ErrInvalidSpanContext, err) // no spanID
 
 	_, err = propagator.Extract(2)
@@ -181,8 +181,8 @@ func TestTextMapPropagatorOrigin(t *testing.T) {
 	if !ok {
 		t.Fatal("not a *spanContext")
 	}
-	if sctx.origin != "synthetics" {
-		t.Fatalf("didn't propagate origin, got: %q", sctx.origin)
+	if sctx.Oorigin != "synthetics" {
+		t.Fatalf("didn't propagate origin, got: %q", sctx.Oorigin)
 	}
 	dst := map[string]string{}
 	if err := tracer.Inject(ctx, TextMapCarrier(dst)); err != nil {
@@ -209,11 +209,11 @@ func TestTextMapPropagatorTraceTagsWithPriority(t *testing.T) {
 	sctx, ok := ctx.(*spanContext)
 	assert.True(t, ok)
 	child := tracer.StartSpan("test", ChildOf(sctx))
-	childSpanID := child.Context().(*spanContext).spanID
+	childSpanID := child.Context().(*spanContext).SspanID
 	assert.Equal(t, map[string]string{
 		"hello":    "world=",
 		"_dd.p.dm": "934086a6-4",
-	}, sctx.trace.propagatingTags)
+	}, sctx.Trace.propagatingTags)
 	dst := map[string]string{}
 	err = tracer.Inject(child.Context(), TextMapCarrier(dst))
 	assert.Nil(t, err)
@@ -239,11 +239,11 @@ func TestTextMapPropagatorTraceTagsWithoutPriority(t *testing.T) {
 	sctx, ok := ctx.(*spanContext)
 	assert.True(t, ok)
 	child := tracer.StartSpan("test", ChildOf(sctx))
-	childSpanID := child.Context().(*spanContext).spanID
+	childSpanID := child.Context().(*spanContext).SspanID
 	assert.Equal(t, map[string]string{
 		"hello":    "world",
 		"_dd.p.dm": "934086a6-4",
-	}, sctx.trace.propagatingTags)
+	}, sctx.Trace.propagatingTags)
 	dst := map[string]string{}
 	err = tracer.Inject(child.Context(), TextMapCarrier(dst))
 	assert.Nil(t, err)
@@ -271,9 +271,9 @@ func TestExtractOriginSynthetics(t *testing.T) {
 	if !ok {
 		t.Fatal("not a *spanContext")
 	}
-	assert.Equal(t, sctx.spanID, uint64(0))
-	assert.Equal(t, sctx.traceID, uint64(3))
-	assert.Equal(t, sctx.origin, "synthetics")
+	assert.Equal(t, sctx.SspanID, uint64(0))
+	assert.Equal(t, sctx.TtraceID, uint64(3))
+	assert.Equal(t, sctx.Oorigin, "synthetics")
 }
 
 func TestTextMapPropagator(t *testing.T) {
@@ -290,7 +290,7 @@ func TestTextMapPropagator(t *testing.T) {
 		assert.Nil(t, err)
 		sctx, ok := ctx.(*spanContext)
 		assert.True(t, ok)
-		assert.Equal(t, "decoding_error", sctx.trace.tags["_dd.propagation_error"])
+		assert.Equal(t, "decoding_error", sctx.Trace.tags["_dd.propagation_error"])
 	})
 
 	t.Run("ExtractTraceTagsTooLong", func(t *testing.T) {
@@ -311,7 +311,7 @@ func TestTextMapPropagator(t *testing.T) {
 		assert.Nil(t, err)
 		sctx, ok := ctx.(*spanContext)
 		assert.True(t, ok)
-		assert.Equal(t, "extract_max_size", sctx.trace.tags["_dd.propagation_error"])
+		assert.Equal(t, "extract_max_size", sctx.Trace.tags["_dd.propagation_error"])
 	})
 
 	t.Run("InjectTraceTagsTooLong", func(t *testing.T) {
@@ -320,9 +320,9 @@ func TestTextMapPropagator(t *testing.T) {
 		defer tracer.Stop()
 		child := tracer.StartSpan("test")
 		for i := 0; i < 100; i++ {
-			child.Context().(*spanContext).trace.setPropagatingTag(fmt.Sprintf("someKey%d", i), fmt.Sprintf("someValue%d", i))
+			child.Context().(*spanContext).Trace.setPropagatingTag(fmt.Sprintf("someKey%d", i), fmt.Sprintf("someValue%d", i))
 		}
-		childSpanID := child.Context().(*spanContext).spanID
+		childSpanID := child.Context().(*spanContext).SspanID
 		dst := map[string]string{}
 		err := tracer.Inject(child.Context(), TextMapCarrier(dst))
 		assert.Nil(t, err)
@@ -331,7 +331,7 @@ func TestTextMapPropagator(t *testing.T) {
 			"x-datadog-trace-id":          strconv.Itoa(int(childSpanID)),
 			"x-datadog-sampling-priority": "1",
 		}, dst)
-		assert.Equal(t, "inject_max_size", child.Context().(*spanContext).trace.tags["_dd.propagation_error"])
+		assert.Equal(t, "inject_max_size", child.Context().(*spanContext).Trace.tags["_dd.propagation_error"])
 	})
 
 	t.Run("InvalidTraceTags", func(t *testing.T) {
@@ -340,9 +340,9 @@ func TestTextMapPropagator(t *testing.T) {
 		defer tracer.Stop()
 		internal.SetGlobalTracer(tracer)
 		child := tracer.StartSpan("test")
-		child.Context().(*spanContext).trace.setPropagatingTag("_dd.p.hello1", "world")  // valid value
-		child.Context().(*spanContext).trace.setPropagatingTag("_dd.p.hello2", "world,") // invalid value
-		childSpanID := child.Context().(*spanContext).spanID
+		child.Context().(*spanContext).Trace.setPropagatingTag("_dd.p.hello1", "world")  // valid value
+		child.Context().(*spanContext).Trace.setPropagatingTag("_dd.p.hello2", "world,") // invalid value
+		childSpanID := child.Context().(*spanContext).SspanID
 		dst := map[string]string{}
 		err := tracer.Inject(child.Context(), TextMapCarrier(dst))
 		assert.Nil(t, err)
@@ -351,7 +351,7 @@ func TestTextMapPropagator(t *testing.T) {
 		assert.Equal(t, strconv.Itoa(int(childSpanID)), dst["x-datadog-trace-id"])
 		assert.Equal(t, "1", dst["x-datadog-sampling-priority"])
 		assertTraceTags(t, "_dd.p.dm=-1,_dd.p.hello1=world", dst["x-datadog-tags"])
-		assert.Equal(t, "encoding_error", child.Context().(*spanContext).trace.tags["_dd.propagation_error"])
+		assert.Equal(t, "encoding_error", child.Context().(*spanContext).Trace.tags["_dd.propagation_error"])
 	})
 
 	t.Run("InjectExtract", func(t *testing.T) {
@@ -379,10 +379,10 @@ func TestTextMapPropagator(t *testing.T) {
 
 		xctx, ok := sctx.(*spanContext)
 		assert.True(ok)
-		assert.Equal(xctx.traceID, ctx.traceID)
-		assert.Equal(xctx.spanID, ctx.spanID)
-		assert.Equal(xctx.baggage, ctx.baggage)
-		assert.Equal(xctx.trace.priority, ctx.trace.priority)
+		assert.Equal(xctx.TtraceID, ctx.TtraceID)
+		assert.Equal(xctx.SspanID, ctx.SspanID)
+		assert.Equal(xctx.Bbaggage, ctx.Bbaggage)
+		assert.Equal(xctx.Trace.priority, ctx.Trace.priority)
 	})
 }
 
@@ -438,8 +438,8 @@ func TestEnvVars(t *testing.T) {
 					defer tracer.Stop()
 					root := tracer.StartSpan("web.request").(*span)
 					ctx, ok := root.Context().(*spanContext)
-					ctx.traceID = test.in[0]
-					ctx.spanID = test.in[1]
+					ctx.TtraceID = test.in[0]
+					ctx.SspanID = test.in[1]
 					headers := TextMapCarrier(map[string]string{})
 					err := tracer.Inject(ctx, headers)
 
@@ -501,8 +501,8 @@ func TestEnvVars(t *testing.T) {
 					sctx, ok := ctx.(*spanContext)
 					assert.True(ok)
 
-					assert.Equal(sctx.traceID, test.out[0])
-					assert.Equal(sctx.spanID, test.out[1])
+					assert.Equal(sctx.TtraceID, test.out[0])
+					assert.Equal(sctx.SspanID, test.out[1])
 				})
 			}
 		}
@@ -591,11 +591,11 @@ func TestEnvVars(t *testing.T) {
 					sctx, ok := ctx.(*spanContext)
 					assert.True(ok)
 
-					assert.Equal(test.out[0], sctx.traceID)
-					assert.Equal(test.out[1], sctx.spanID)
+					assert.Equal(test.out[0], sctx.TtraceID)
+					assert.Equal(test.out[1], sctx.SspanID)
 					if len(test.out) > 2 {
-						require.NotNil(t, sctx.trace)
-						assert.Equal(float64(test.out[2]), *sctx.trace.priority)
+						require.NotNil(t, sctx.Trace)
+						assert.Equal(float64(test.out[2]), *sctx.Trace.priority)
 					}
 				})
 			}
@@ -624,8 +624,8 @@ func TestEnvVars(t *testing.T) {
 				root := tracer.StartSpan("myrequest").(*span)
 				ctx, ok := root.Context().(*spanContext)
 				require.True(t, ok)
-				ctx.traceID = test.in[0]
-				ctx.spanID = test.in[1]
+				ctx.TtraceID = test.in[0]
+				ctx.SspanID = test.in[1]
 				ctx.setSamplingPriority(int(test.in[2]), samplernames.Unknown)
 				headers := TextMapCarrier(map[string]string{})
 				err := tracer.Inject(ctx, headers)
@@ -680,8 +680,8 @@ func TestEnvVars(t *testing.T) {
 					defer tracer.Stop()
 					root := tracer.StartSpan("web.request").(*span)
 					ctx, ok := root.Context().(*spanContext)
-					ctx.traceID = test.in[0]
-					ctx.spanID = test.in[1]
+					ctx.TtraceID = test.in[0]
+					ctx.SspanID = test.in[1]
 					headers := TextMapCarrier(map[string]string{})
 					err := tracer.Inject(ctx, headers)
 
@@ -738,8 +738,8 @@ func TestEnvVars(t *testing.T) {
 					sctx, ok := ctx.(*spanContext)
 					assert.True(ok)
 
-					assert.Equal(sctx.traceID, test.out)
-					assert.Equal(sctx.spanID, test.out)
+					assert.Equal(sctx.TtraceID, test.out)
+					assert.Equal(sctx.SspanID, test.out)
 					p, ok := sctx.samplingPriority()
 					assert.True(ok)
 					assert.Equal(int(test.out), p)
@@ -793,8 +793,8 @@ func TestEnvVars(t *testing.T) {
 					root.SetTag(ext.SamplingPriority, -1)
 					root.SetBaggageItem("item", "x")
 					ctx, ok := root.Context().(*spanContext)
-					ctx.traceID = test.in[0]
-					ctx.spanID = test.in[1]
+					ctx.TtraceID = test.in[0]
+					ctx.SspanID = test.in[1]
 					headers := TextMapCarrier(map[string]string{})
 					err := tracer.Inject(ctx, headers)
 
@@ -807,10 +807,10 @@ func TestEnvVars(t *testing.T) {
 
 					xctx, ok := sctx.(*spanContext)
 					assert.True(ok)
-					assert.Equal(ctx.traceID, xctx.traceID)
-					assert.Equal(ctx.spanID, xctx.spanID)
-					assert.Equal(ctx.baggage, xctx.baggage)
-					assert.Equal(ctx.trace.priority, xctx.trace.priority)
+					assert.Equal(ctx.TtraceID, xctx.TtraceID)
+					assert.Equal(ctx.SspanID, xctx.SspanID)
+					assert.Equal(ctx.Bbaggage, xctx.Bbaggage)
+					assert.Equal(ctx.Trace.priority, xctx.Trace.priority)
 				})
 			}
 		}
@@ -1002,15 +1002,15 @@ func TestEnvVars(t *testing.T) {
 					sctx, ok := ctx.(*spanContext)
 					assert.True(ok)
 
-					assert.Equal(test.traceID, sctx.traceID)
-					assert.Equal(test.spanID, sctx.spanID)
-					assert.Equal(test.origin, sctx.origin)
+					assert.Equal(test.traceID, sctx.TtraceID)
+					assert.Equal(test.spanID, sctx.SspanID)
+					assert.Equal(test.origin, sctx.Oorigin)
 					p, ok := sctx.samplingPriority()
 					assert.True(ok)
 					assert.Equal(test.priority, p)
 
-					assert.Equal(test.fullTraceID, sctx.trace.propagatingTags[w3cTraceIDTag])
-					assert.Equal(test.propagatingTags, sctx.trace.propagatingTags)
+					assert.Equal(test.fullTraceID, sctx.Trace.propagatingTags[w3cTraceIDTag])
+					assert.Equal(test.propagatingTags, sctx.Trace.propagatingTags)
 				})
 			}
 		}
@@ -1110,7 +1110,7 @@ func TestEnvVars(t *testing.T) {
 					root := tracer.StartSpan("web.request", ChildOf(ctx)).(*span)
 					defer root.Finish()
 					sctx, ok := ctx.(*spanContext)
-					sctx.origin = test.origin
+					sctx.Oorigin = test.origin
 					assert.True(ok)
 
 					headers := TextMapCarrier(map[string]string{})
@@ -1291,10 +1291,10 @@ func TestEnvVars(t *testing.T) {
 					root := tracer.StartSpan("web.request").(*span)
 					root.SetTag(ext.SamplingPriority, test.priority)
 					ctx, ok := root.Context().(*spanContext)
-					ctx.origin = test.origin
-					ctx.traceID = test.traceID
-					ctx.spanID = test.spanID
-					ctx.trace.propagatingTags = test.propagatingTags
+					ctx.Oorigin = test.origin
+					ctx.TtraceID = test.traceID
+					ctx.SspanID = test.spanID
+					ctx.Trace.propagatingTags = test.propagatingTags
 					headers := TextMapCarrier(map[string]string{})
 					err := tracer.Inject(ctx, headers)
 
@@ -1313,15 +1313,15 @@ func TestEnvVars(t *testing.T) {
 					root := tracer.StartSpan("web.request").(*span)
 					root.SetTag(ext.SamplingPriority, ext.PriorityUserKeep)
 					ctx, ok := root.Context().(*spanContext)
-					ctx.origin = "old_tracestate"
-					ctx.traceID = 1229782938247303442
-					ctx.spanID = 2459565876494606882
-					ctx.trace.propagatingTags = map[string]string{
+					ctx.Oorigin = "old_tracestate"
+					ctx.TtraceID = 1229782938247303442
+					ctx.SspanID = 2459565876494606882
+					ctx.Trace.propagatingTags = map[string]string{
 						"tracestate": "valid_vendor=a:1",
 					}
 					// dd part of the tracestate must not exceed 256 characters
 					for i := 0; i < 32; i++ {
-						ctx.trace.propagatingTags[fmt.Sprintf("_dd.p.a%v", i)] = "i"
+						ctx.Trace.propagatingTags[fmt.Sprintf("_dd.p.a%v", i)] = "i"
 					}
 					headers := TextMapCarrier(map[string]string{})
 					err := tracer.Inject(ctx, headers)
@@ -1461,11 +1461,11 @@ func TestEnvVars(t *testing.T) {
 					sctx, ok := ctx.(*spanContext)
 					assert.True(ok)
 
-					assert.Equal(test.traceID, sctx.traceID)
-					assert.Equal(test.spanID, sctx.spanID)
+					assert.Equal(test.traceID, sctx.TtraceID)
+					assert.Equal(test.spanID, sctx.SspanID)
 
-					assert.Equal(test.origin, sctx.origin)
-					assert.Equal(test.priority, *sctx.trace.priority)
+					assert.Equal(test.origin, sctx.Oorigin)
+					assert.Equal(test.priority, *sctx.Trace.priority)
 
 					headers := TextMapCarrier(map[string]string{})
 					err = tracer.Inject(ctx, headers)
@@ -1530,13 +1530,13 @@ func TestEnvVars(t *testing.T) {
 					if test.priority != 0 {
 						sctx.setSamplingPriority(int(test.priority), samplernames.Unknown)
 					}
-					assert.Equal(true, sctx.updated)
+					assert.Equal(true, sctx.Updated)
 
 					headers := TextMapCarrier(map[string]string{})
 					err = tracer.Inject(s.Context(), headers)
-					assert.Equal(test.traceID, sctx.traceID)
-					assert.Equal(test.parentID, sctx.span.ParentID)
-					assert.Equal(test.spanID, sctx.spanID)
+					assert.Equal(test.traceID, sctx.TtraceID)
+					assert.Equal(test.parentID, sctx.Span.ParentID)
+					assert.Equal(test.spanID, sctx.SspanID)
 					assert.Equal(test.out[traceparentHeader], headers[traceparentHeader])
 					assert.Equal(test.out[tracestateHeader], headers[tracestateHeader])
 					ddTag := strings.SplitN(headers[tracestateHeader], ",", 2)[0]
@@ -1577,8 +1577,8 @@ func TestNonePropagator(t *testing.T) {
 		root.SetTag(ext.SamplingPriority, -1)
 		root.SetBaggageItem("item", "x")
 		ctx, ok := root.Context().(*spanContext)
-		ctx.traceID = 1
-		ctx.spanID = 1
+		ctx.TtraceID = 1
+		ctx.SspanID = 1
 		headers := TextMapCarrier(map[string]string{})
 		err := tracer.Inject(ctx, headers)
 
@@ -1600,8 +1600,8 @@ func TestNonePropagator(t *testing.T) {
 		root.SetTag(ext.SamplingPriority, -1)
 		root.SetBaggageItem("item", "x")
 		ctx, ok := root.Context().(*spanContext)
-		ctx.traceID = 1
-		ctx.spanID = 1
+		ctx.TtraceID = 1
+		ctx.SspanID = 1
 		headers := TextMapCarrier(map[string]string{})
 		err := tracer.Inject(ctx, headers)
 
@@ -1639,8 +1639,8 @@ func TestNonePropagator(t *testing.T) {
 			root.SetTag(ext.SamplingPriority, -1)
 			root.SetBaggageItem("item", "x")
 			ctx, ok := root.Context().(*spanContext)
-			ctx.traceID = 1
-			ctx.spanID = 1
+			ctx.TtraceID = 1
+			ctx.SspanID = 1
 			headers := TextMapCarrier(map[string]string{})
 			err := tracer.Inject(ctx, headers)
 
@@ -1663,8 +1663,8 @@ func TestNonePropagator(t *testing.T) {
 			root.SetTag(ext.SamplingPriority, -1)
 			root.SetBaggageItem("item", "x")
 			ctx, ok := root.Context().(*spanContext)
-			ctx.traceID = 1
-			ctx.spanID = 1
+			ctx.TtraceID = 1
+			ctx.SspanID = 1
 			headers := TextMapCarrier(map[string]string{})
 			err := tracer.Inject(ctx, headers)
 
@@ -1749,24 +1749,24 @@ func FuzzMarshalPropagatingTags(f *testing.F) {
 		key2 string, val2 string, key3 string, val3 string) {
 
 		sendCtx := new(spanContext)
-		sendCtx.trace = newTrace()
+		sendCtx.Trace = newTrace()
 		recvCtx := new(spanContext)
-		recvCtx.trace = newTrace()
+		recvCtx.Trace = newTrace()
 
 		pConfig := PropagatorConfig{MaxTagsHeaderLen: 128}
 		propagator := propagator{&pConfig}
 		tags := map[string]string{key1: val1, key2: val2, key3: val3}
 		for key, val := range tags {
-			sendCtx.trace.setPropagatingTag(key, val)
+			sendCtx.Trace.setPropagatingTag(key, val)
 		}
 		marshal := propagator.marshalPropagatingTags(sendCtx)
-		if _, ok := sendCtx.trace.tags[keyPropagationError]; ok {
+		if _, ok := sendCtx.Trace.tags[keyPropagationError]; ok {
 			t.Skipf("Skipping invalid tags")
 		}
 		unmarshalPropagatingTags(recvCtx, marshal)
-		marshaled := sendCtx.trace.propagatingTags
-		unmarshaled := recvCtx.trace.propagatingTags
-		if !reflect.DeepEqual(sendCtx.trace.propagatingTags, recvCtx.trace.propagatingTags) {
+		marshaled := sendCtx.Trace.propagatingTags
+		unmarshaled := recvCtx.Trace.propagatingTags
+		if !reflect.DeepEqual(sendCtx.Trace.propagatingTags, recvCtx.Trace.propagatingTags) {
 			t.Fatalf("Inconsistent marshaling/unmarshaling: (%q) is different from (%q)", marshaled, unmarshaled)
 		}
 	})
@@ -1790,9 +1790,9 @@ func FuzzComposeTracestate(f *testing.F) {
 		key2 string, val2 string, key3 string, val3 string, oldState string) {
 
 		sendCtx := new(spanContext)
-		sendCtx.trace = newTrace()
+		sendCtx.Trace = newTrace()
 		recvCtx := new(spanContext)
-		recvCtx.trace = newTrace()
+		recvCtx.Trace = newTrace()
 
 		tags := map[string]string{key1: val1, key2: val2, key3: val3}
 		totalLen := 0
@@ -1809,7 +1809,7 @@ func FuzzComposeTracestate(f *testing.F) {
 			if totalLen > 128 {
 				break
 			}
-			sendCtx.trace.setPropagatingTag(k, v)
+			sendCtx.Trace.setPropagatingTag(k, v)
 		}
 		if len(strings.Split(strings.Trim(oldState, " \t"), ",")) > 31 {
 			t.Skipf("Skipping invalid tags")
@@ -1817,13 +1817,13 @@ func FuzzComposeTracestate(f *testing.F) {
 		traceState := composeTracestate(sendCtx, priority, oldState)
 		parseTracestate(recvCtx, traceState)
 		setPropagatingTag(sendCtx, tracestateHeader, traceState)
-		if !reflect.DeepEqual(sendCtx.trace.propagatingTags, recvCtx.trace.propagatingTags) {
+		if !reflect.DeepEqual(sendCtx.Trace.propagatingTags, recvCtx.Trace.propagatingTags) {
 			t.Fatalf(`Inconsistent composing/parsing:
 			pre compose: (%q)
 			is different from
 			parsed: (%q)
-			for tracestate of: (%s)`, sendCtx.trace.propagatingTags,
-				recvCtx.trace.propagatingTags,
+			for tracestate of: (%s)`, sendCtx.Trace.propagatingTags,
+				recvCtx.Trace.propagatingTags,
 				traceState)
 		}
 	})
@@ -1843,15 +1843,15 @@ func FuzzParseTraceparent(f *testing.F) {
 		spanID string, flags string) {
 
 		ctx := new(spanContext)
-		ctx.trace = newTrace()
+		ctx.Trace = newTrace()
 
 		header := strings.Join([]string{version, traceID, spanID, flags}, "-")
 
 		if parseTraceparent(ctx, header) != nil {
 			t.Skipf("Error parsing parent")
 		}
-		parsedTraceID := ctx.trace.propagatingTags[w3cTraceIDTag]
-		parsedSpanID := ctx.spanID
+		parsedTraceID := ctx.Trace.propagatingTags[w3cTraceIDTag]
+		parsedSpanID := ctx.SspanID
 		parsedSamplingPriority, ok := ctx.samplingPriority()
 		if !ok {
 			t.Skipf("Error retrieving sampling priority")

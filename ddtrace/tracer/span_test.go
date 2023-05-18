@@ -128,7 +128,7 @@ func TestShouldDrop(t *testing.T) {
 			s := newSpan("", "", "", 1, 1, 0)
 			s.SetTag(ext.SamplingPriority, tt.prio)
 			s.SetTag(ext.EventSampleRate, tt.rate)
-			atomic.StoreInt32(&s.Ccontext.errors, tt.errors)
+			atomic.StoreInt32(&s.Ccontext.Errors, tt.errors)
 			assert.Equal(t, shouldKeep(s), tt.want)
 		})
 	}
@@ -375,7 +375,7 @@ func TestTraceManualKeepAndManualDrop(t *testing.T) {
 		t.Run(fmt.Sprintf("%s/non-local", scenario.tag), func(t *testing.T) {
 			tracer := newTracer()
 			defer tracer.Stop()
-			spanCtx := &spanContext{traceID: 42, spanID: 42}
+			spanCtx := &spanContext{TtraceID: 42, SspanID: 42}
 			spanCtx.setSamplingPriority(scenario.p, samplernames.RemoteRate)
 			span := tracer.StartSpan("non-local root span", ChildOf(spanCtx)).(*span)
 			span.SetTag(scenario.tag, true)
@@ -604,14 +604,14 @@ func TestSpanSamplingPriority(t *testing.T) {
 		v, ok := span.Metrics[keySamplingPriority]
 		assert.True(ok)
 		assert.EqualValues(priority, v)
-		assert.EqualValues(*span.Ccontext.trace.priority, v)
+		assert.EqualValues(*span.Ccontext.Trace.priority, v)
 
 		childSpan := tracer.newChildSpan("my.child", span)
 		v0, ok0 := span.Metrics[keySamplingPriority]
 		v1, ok1 := childSpan.Metrics[keySamplingPriority]
 		assert.Equal(ok0, ok1)
 		assert.Equal(v0, v1)
-		assert.EqualValues(*childSpan.Ccontext.trace.priority, v0)
+		assert.EqualValues(*childSpan.Ccontext.Trace.priority, v0)
 	}
 }
 

@@ -49,8 +49,8 @@ func TestStartSpanFromContext(t *testing.T) {
 	_, _, _, stop := startTestTracer(t)
 	defer stop()
 
-	parent := &span{Ccontext: &spanContext{spanID: 123, traceID: 456}}
-	parent2 := &span{Ccontext: &spanContext{spanID: 789, traceID: 456}}
+	parent := &span{Ccontext: &spanContext{SspanID: 123, TtraceID: 456}}
+	parent2 := &span{Ccontext: &spanContext{SspanID: 789, TtraceID: 456}}
 	pctx := ContextWithSpan(context.Background(), parent)
 	child, ctx := StartSpanFromContext(
 		pctx,

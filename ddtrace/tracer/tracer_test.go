@@ -245,7 +245,7 @@ func TestTracerStartSpan(t *testing.T) {
 			ext.PriorityAutoReject,
 			ext.PriorityAutoKeep,
 		}, span.Metrics[keySamplingPriority])
-		assert.Equal("-1", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
+		assert.Equal("-1", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 		// A span is not measured unless made so specifically
 		_, ok := span.Meta[keyMeasured]
 		assert.False(ok)
@@ -258,7 +258,7 @@ func TestTracerStartSpan(t *testing.T) {
 		defer tracer.Stop()
 		span := tracer.StartSpan("web.request", Tag(ext.SamplingPriority, ext.PriorityUserKeep)).(*span)
 		assert.Equal(t, float64(ext.PriorityUserKeep), span.Metrics[keySamplingPriority])
-		assert.Equal(t, "-4", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
+		assert.Equal(t, "-4", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 	})
 
 	t.Run("name", func(t *testing.T) {
@@ -299,8 +299,8 @@ func TestSamplingDecision(t *testing.T) {
 		child.Finish()
 		span.Finish()
 		assert.Equal(t, float64(ext.PriorityAutoReject), span.Metrics[keySamplingPriority])
-		assert.Equal(t, "", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
-		assert.Equal(t, decisionKeep, span.Ccontext.trace.samplingDecision)
+		assert.Equal(t, "", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
+		assert.Equal(t, decisionKeep, span.Ccontext.Trace.samplingDecision)
 	})
 
 	t.Run("dropped_sent", func(t *testing.T) {
@@ -316,8 +316,8 @@ func TestSamplingDecision(t *testing.T) {
 		child.Finish()
 		span.Finish()
 		assert.Equal(t, float64(ext.PriorityAutoReject), span.Metrics[keySamplingPriority])
-		assert.Equal(t, "", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
-		assert.Equal(t, decisionKeep, span.Ccontext.trace.samplingDecision)
+		assert.Equal(t, "", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
+		assert.Equal(t, decisionKeep, span.Ccontext.Trace.samplingDecision)
 	})
 
 	t.Run("dropped_stats", func(t *testing.T) {
@@ -334,8 +334,8 @@ func TestSamplingDecision(t *testing.T) {
 		child.Finish()
 		span.Finish()
 		assert.Equal(t, float64(ext.PriorityAutoReject), span.Metrics[keySamplingPriority])
-		assert.Equal(t, "", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
-		assert.Equal(t, decisionNone, span.Ccontext.trace.samplingDecision)
+		assert.Equal(t, "", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
+		assert.Equal(t, decisionNone, span.Ccontext.Trace.samplingDecision)
 	})
 
 	t.Run("events_sampled", func(t *testing.T) {
@@ -350,8 +350,8 @@ func TestSamplingDecision(t *testing.T) {
 		child.Finish()
 		span.Finish()
 		assert.Equal(t, float64(ext.PriorityAutoReject), span.Metrics[keySamplingPriority])
-		assert.Equal(t, "", span.Ccontext.trace.tags[keyDecisionMaker])
-		assert.Equal(t, decisionKeep, span.Ccontext.trace.samplingDecision)
+		assert.Equal(t, "", span.Ccontext.Trace.tags[keyDecisionMaker])
+		assert.Equal(t, decisionKeep, span.Ccontext.Trace.samplingDecision)
 	})
 
 	t.Run("client_dropped", func(t *testing.T) {
@@ -373,8 +373,8 @@ func TestSamplingDecision(t *testing.T) {
 		assert.Equal(t, float64(ext.PriorityAutoReject), span.Metrics[keySamplingPriority])
 		// this trace won't be sent to the agent,
 		// therefore not necessary to populate keyDecisionMaker
-		assert.Equal(t, "", span.Ccontext.trace.propagatingTags[keyDecisionMaker])
-		assert.Equal(t, decisionDrop, span.Ccontext.trace.samplingDecision)
+		assert.Equal(t, "", span.Ccontext.Trace.propagatingTags[keyDecisionMaker])
+		assert.Equal(t, decisionDrop, span.Ccontext.Trace.samplingDecision)
 	})
 
 	t.Run("client_dropped_with_single_spans:stats_enabled", func(t *testing.T) {
@@ -401,7 +401,7 @@ func TestSamplingDecision(t *testing.T) {
 		parent.Finish()
 		tracer.Stop()
 		assert.Equal(t, float64(ext.PriorityAutoReject), parent.Metrics[keySamplingPriority])
-		assert.Equal(t, decisionDrop, parent.Ccontext.trace.samplingDecision)
+		assert.Equal(t, decisionDrop, parent.Ccontext.Trace.samplingDecision)
 		assert.Equal(t, 8.0, parent.Metrics[keySpanSamplingMechanism])
 		assert.Equal(t, 1.0, parent.Metrics[keySingleSpanSamplingRuleRate])
 		assert.Equal(t, 15.0, parent.Metrics[keySingleSpanSamplingMPS])
@@ -429,7 +429,7 @@ func TestSamplingDecision(t *testing.T) {
 		parent.Finish()
 		tracer.Stop()
 		assert.Equal(t, float64(ext.PriorityAutoReject), parent.Metrics[keySamplingPriority])
-		assert.Equal(t, decisionDrop, parent.Ccontext.trace.samplingDecision)
+		assert.Equal(t, decisionDrop, parent.Ccontext.Trace.samplingDecision)
 		assert.Equal(t, 8.0, parent.Metrics[keySpanSamplingMechanism])
 		assert.Equal(t, 1.0, parent.Metrics[keySingleSpanSamplingRuleRate])
 		assert.Equal(t, 15.0, parent.Metrics[keySingleSpanSamplingMPS])
@@ -457,7 +457,7 @@ func TestSamplingDecision(t *testing.T) {
 		parent.Finish()
 		tracer.Stop()
 		assert.Equal(t, float64(ext.PriorityAutoReject), parent.Metrics[keySamplingPriority])
-		assert.Equal(t, decisionDrop, parent.Ccontext.trace.samplingDecision)
+		assert.Equal(t, decisionDrop, parent.Ccontext.Trace.samplingDecision)
 		assert.NotContains(t, parent.Metrics, keySpanSamplingMechanism)
 		assert.NotContains(t, parent.Metrics, keySingleSpanSamplingRuleRate)
 		assert.NotContains(t, parent.Metrics, keySingleSpanSamplingMPS)
@@ -482,7 +482,7 @@ func TestSamplingDecision(t *testing.T) {
 		tracer.Stop()
 		// single span sampling should only run on dropped traces
 		assert.Equal(t, float64(ext.PriorityAutoKeep), parent.Metrics[keySamplingPriority])
-		assert.Equal(t, decisionKeep, parent.Ccontext.trace.samplingDecision)
+		assert.Equal(t, decisionKeep, parent.Ccontext.Trace.samplingDecision)
 		assert.NotContains(t, parent.Metrics, keySpanSamplingMechanism)
 		assert.NotContains(t, parent.Metrics, keySingleSpanSamplingRuleRate)
 		assert.NotContains(t, parent.Metrics, keySingleSpanSamplingMPS)
@@ -597,7 +597,7 @@ func TestSamplingDecision(t *testing.T) {
 			}
 			if s.Metrics[keySamplingPriority] == ext.PriorityUserKeep {
 				keptTotal++
-				if s.Ccontext.trace.root.SpanID != s.SpanID {
+				if s.Ccontext.Trace.root.SpanID != s.SpanID {
 					keptChildren++
 				}
 			}
@@ -706,7 +706,7 @@ func TestTracerBaggagePropagation(t *testing.T) {
 	child := tracer.StartSpan("db.query", ChildOf(root.Context())).(*span)
 	context := child.Context().(*spanContext)
 
-	assert.Equal("value", context.baggage["key"])
+	assert.Equal("value", context.Bbaggage["key"])
 }
 
 func TestStartSpanOrigin(t *testing.T) {
@@ -772,10 +772,10 @@ func TestPropagationDefaults(t *testing.T) {
 	pctx := propagated.(*spanContext)
 
 	// compare if there is a Context match
-	assert.Equal(ctx.traceID, pctx.traceID)
-	assert.Equal(ctx.spanID, pctx.spanID)
-	assert.Equal(ctx.baggage, pctx.baggage)
-	assert.Equal(*ctx.trace.priority, -1.)
+	assert.Equal(ctx.TtraceID, pctx.TtraceID)
+	assert.Equal(ctx.SspanID, pctx.SspanID)
+	assert.Equal(ctx.Bbaggage, pctx.Bbaggage)
+	assert.Equal(*ctx.Trace.priority, -1.)
 
 	// ensure a child can be created
 	child := tracer.StartSpan("db.query", ChildOf(propagated)).(*span)
@@ -784,7 +784,7 @@ func TestPropagationDefaults(t *testing.T) {
 	assert.NotEqual(uint64(0), child.SpanID)
 	assert.Equal(root.SpanID, child.ParentID)
 	assert.Equal(root.TraceID, child.ParentID)
-	assert.Equal(*child.Ccontext.trace.priority, -1.)
+	assert.Equal(*child.Ccontext.Trace.priority, -1.)
 }
 
 func TestTracerSamplingPriorityPropagation(t *testing.T) {
@@ -794,10 +794,10 @@ func TestTracerSamplingPriorityPropagation(t *testing.T) {
 	root := tracer.StartSpan("web.request", Tag(ext.SamplingPriority, 2)).(*span)
 	child := tracer.StartSpan("db.query", ChildOf(root.Context())).(*span)
 	assert.EqualValues(2, root.Metrics[keySamplingPriority])
-	assert.Equal("-4", root.Ccontext.trace.propagatingTags[keyDecisionMaker])
+	assert.Equal("-4", root.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 	assert.EqualValues(2, child.Metrics[keySamplingPriority])
-	assert.EqualValues(2., *root.Ccontext.trace.priority)
-	assert.EqualValues(2., *child.Ccontext.trace.priority)
+	assert.EqualValues(2., *root.Ccontext.Trace.priority)
+	assert.EqualValues(2., *child.Ccontext.Trace.priority)
 }
 
 func TestTracerSamplingPriorityEmptySpanCtx(t *testing.T) {
@@ -806,13 +806,13 @@ func TestTracerSamplingPriorityEmptySpanCtx(t *testing.T) {
 	defer stop()
 	root := newBasicSpan("web.request")
 	spanCtx := &spanContext{
-		traceID: root.Ccontext.TraceID(),
-		spanID:  root.Ccontext.SpanID(),
-		trace:   &trace{},
+		TtraceID: root.Ccontext.TraceID(),
+		SspanID:  root.Ccontext.SpanID(),
+		Trace:    &trace{},
 	}
 	child := tracer.StartSpan("db.query", ChildOf(spanCtx)).(*span)
 	assert.EqualValues(1, child.Metrics[keySamplingPriority])
-	assert.Equal("-1", child.Ccontext.trace.propagatingTags[keyDecisionMaker])
+	assert.Equal("-1", child.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 }
 
 func TestTracerDDUpstreamServicesManualKeep(t *testing.T) {
@@ -821,15 +821,15 @@ func TestTracerDDUpstreamServicesManualKeep(t *testing.T) {
 	defer tracer.Stop()
 	root := newBasicSpan("web.request")
 	spanCtx := &spanContext{
-		traceID: root.Ccontext.TraceID(),
-		spanID:  root.Ccontext.SpanID(),
-		trace:   &trace{},
+		TtraceID: root.Ccontext.TraceID(),
+		SspanID:  root.Ccontext.SpanID(),
+		Trace:    &trace{},
 	}
 	child := tracer.StartSpan("db.query", ChildOf(spanCtx)).(*span)
 	grandChild := tracer.StartSpan("db.query", ChildOf(child.Context())).(*span)
 	grandChild.SetTag(ext.ManualDrop, true)
 	grandChild.SetTag(ext.ManualKeep, true)
-	assert.Equal("-4", grandChild.Ccontext.trace.propagatingTags[keyDecisionMaker])
+	assert.Equal("-4", grandChild.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 }
 
 func TestTracerBaggageImmutability(t *testing.T) {
@@ -842,8 +842,8 @@ func TestTracerBaggageImmutability(t *testing.T) {
 	child.SetBaggageItem("key", "changed!")
 	parentContext := root.Context().(*spanContext)
 	childContext := child.Context().(*spanContext)
-	assert.Equal("value", parentContext.baggage["key"])
-	assert.Equal("changed!", childContext.baggage["key"])
+	assert.Equal("value", parentContext.Bbaggage["key"])
+	assert.Equal("changed!", childContext.Bbaggage["key"])
 }
 
 func TestTracerSpanTags(t *testing.T) {
@@ -1029,7 +1029,7 @@ func TestTracerPrioritySampler(t *testing.T) {
 	s := tr.newEnvSpan("pylons", "")
 	assert.Equal(1., s.Metrics[keySamplingPriorityRate])
 	assert.Equal(1., s.Metrics[keySamplingPriority])
-	assert.Equal("-1", s.Ccontext.trace.propagatingTags[keyDecisionMaker])
+	assert.Equal("-1", s.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 	p, ok := s.Ccontext.samplingPriority()
 	assert.True(ok)
 	assert.EqualValues(p, s.Metrics[keySamplingPriority])
@@ -1066,9 +1066,9 @@ func TestTracerPrioritySampler(t *testing.T) {
 		assert.Equal(tt.rate, s.Metrics[keySamplingPriorityRate], strconv.Itoa(i))
 		prio, ok := s.Metrics[keySamplingPriority]
 		if prio > 0 {
-			assert.Equal("-1", s.Ccontext.trace.propagatingTags[keyDecisionMaker])
+			assert.Equal("-1", s.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 		} else {
-			assert.Equal("", s.Ccontext.trace.propagatingTags[keyDecisionMaker])
+			assert.Equal("", s.Ccontext.Trace.propagatingTags[keyDecisionMaker])
 		}
 		assert.True(ok)
 		assert.Contains([]float64{0, 1}, prio)
@@ -2132,7 +2132,7 @@ func TestUserMonitoring(t *testing.T) {
 		s.Finish()
 		assert.Equal(t, id, s.Meta[keyUserID])
 		encoded := base64.StdEncoding.EncodeToString([]byte(id))
-		assert.Equal(t, encoded, s.Ccontext.trace.propagatingTags[keyPropagatedUserID])
+		assert.Equal(t, encoded, s.Ccontext.Trace.propagatingTags[keyPropagatedUserID])
 		assert.Equal(t, encoded, s.Meta[keyPropagatedUserID])
 	})
 
@@ -2144,7 +2144,7 @@ func TestUserMonitoring(t *testing.T) {
 		assert.True(t, ok)
 		_, ok = s.Meta[keyPropagatedUserID]
 		assert.False(t, ok)
-		_, ok = s.Ccontext.trace.propagatingTags[keyPropagatedUserID]
+		_, ok = s.Ccontext.Trace.propagatingTags[keyPropagatedUserID]
 		assert.False(t, ok)
 	})
 

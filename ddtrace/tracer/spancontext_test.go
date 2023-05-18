@@ -38,7 +38,7 @@ func TestNewSpanContextPushError(t *testing.T) {
 	_, _, _, stop := startTestTracer(t, WithLogger(tp), WithLambdaMode(true))
 	defer stop()
 	parent := newBasicSpan("test1")                   // 1st span in trace
-	parent.Ccontext.trace.push(newBasicSpan("test2")) // 2nd span in trace
+	parent.Ccontext.Trace.push(newBasicSpan("test2")) // 2nd span in trace
 	child := newSpan("child", "", "", 0, 0, 0)
 
 	// new context having a parent with a trace of two spans.
@@ -124,7 +124,7 @@ func TestSpanTracePushOne(t *testing.T) {
 
 	traceID := random.Uint64()
 	root := newSpan("name1", "a-service", "a-resource", traceID, traceID, 0)
-	trace := root.Ccontext.trace
+	trace := root.Ccontext.Trace
 
 	assert.Len(trace.spans, 1)
 	assert.Equal(root, trace.spans[0], "the span is the one pushed before")
@@ -156,7 +156,7 @@ func TestSpanTracePushNoFinish(t *testing.T) {
 
 	traceID := random.Uint64()
 	root := newSpan("name1", "a-service", "a-resource", traceID, traceID, 0)
-	root.Ccontext.trace = buffer
+	root.Ccontext.Trace = buffer
 
 	buffer.push(root)
 	assert.Len(buffer.spans, 1, "there is one span in the buffer")
@@ -188,7 +188,7 @@ func TestSpanTracePushSeveral(t *testing.T) {
 	trace := []*span{root, span2, span3, span3a}
 
 	for i, span := range trace {
-		span.Ccontext.trace = buffer
+		span.Ccontext.Trace = buffer
 		buffer.push(span)
 		assert.Len(buffer.spans, i+1, "there is one more span in the buffer")
 		assert.Equal(span, buffer.spans[i], "the span is the one pushed before")
@@ -252,12 +252,12 @@ func TestNewSpanContext(t *testing.T) {
 		}
 		ctx := newSpanContext(span, nil)
 		assert := assert.New(t)
-		assert.Equal(ctx.traceID, span.TraceID)
-		assert.Equal(ctx.spanID, span.SpanID)
-		assert.NotNil(ctx.trace)
-		assert.Nil(ctx.trace.priority)
-		assert.Equal(ctx.trace.root, span)
-		assert.Contains(ctx.trace.spans, span)
+		assert.Equal(ctx.TtraceID, span.TraceID)
+		assert.Equal(ctx.SspanID, span.SpanID)
+		assert.NotNil(ctx.Trace)
+		assert.Nil(ctx.Trace.priority)
+		assert.Equal(ctx.Trace.root, span)
+		assert.Contains(ctx.Trace.spans, span)
 	})
 
 	t.Run("priority", func(t *testing.T) {
@@ -269,13 +269,13 @@ func TestNewSpanContext(t *testing.T) {
 		}
 		ctx := newSpanContext(span, nil)
 		assert := assert.New(t)
-		assert.Equal(ctx.traceID, span.TraceID)
-		assert.Equal(ctx.spanID, span.SpanID)
+		assert.Equal(ctx.TtraceID, span.TraceID)
+		assert.Equal(ctx.SspanID, span.SpanID)
 		assert.Equal(ctx.TraceID(), span.TraceID)
 		assert.Equal(ctx.SpanID(), span.SpanID)
-		assert.Equal(*ctx.trace.priority, 1.)
-		assert.Equal(ctx.trace.root, span)
-		assert.Contains(ctx.trace.spans, span)
+		assert.Equal(*ctx.Trace.priority, 1.)
+		assert.Equal(ctx.Trace.root, span)
+		assert.Contains(ctx.Trace.spans, span)
 	})
 
 	t.Run("root", func(t *testing.T) {
@@ -292,10 +292,10 @@ func TestNewSpanContext(t *testing.T) {
 		sctx, ok := ctx.(*spanContext)
 		assert.True(ok)
 		span := StartSpan("some-span", ChildOf(ctx))
-		assert.EqualValues(sctx.traceID, 1)
-		assert.EqualValues(sctx.spanID, 2)
-		assert.EqualValues(*sctx.trace.priority, 3)
-		assert.Equal(sctx.trace.root, span)
+		assert.EqualValues(sctx.TtraceID, 1)
+		assert.EqualValues(sctx.SspanID, 2)
+		assert.EqualValues(*sctx.Trace.priority, 3)
+		assert.Equal(sctx.Trace.root, span)
 	})
 }
 
@@ -307,48 +307,48 @@ func TestSpanContextParent(t *testing.T) {
 	}
 	for name, parentCtx := range map[string]*spanContext{
 		"basic": &spanContext{
-			baggage:    map[string]string{"A": "A", "B": "B"},
-			hasBaggage: 1,
-			trace:      newTrace(),
+			Bbaggage:    map[string]string{"A": "A", "B": "B"},
+			HhasBaggage: 1,
+			Trace:       newTrace(),
 		},
 		"nil-trace": &spanContext{},
 		"priority": &spanContext{
-			baggage:    map[string]string{"A": "A", "B": "B"},
-			hasBaggage: 1,
-			trace: &trace{
+			Bbaggage:    map[string]string{"A": "A", "B": "B"},
+			HhasBaggage: 1,
+			Trace: &trace{
 				spans:    []*span{newBasicSpan("abc")},
 				priority: func() *float64 { v := new(float64); *v = 2; return v }(),
 			},
 		},
 		"sampling_decision": &spanContext{
-			baggage:    map[string]string{"A": "A", "B": "B"},
-			hasBaggage: 1,
-			trace: &trace{
+			Bbaggage:    map[string]string{"A": "A", "B": "B"},
+			HhasBaggage: 1,
+			Trace: &trace{
 				spans:            []*span{newBasicSpan("abc")},
 				samplingDecision: decisionKeep,
 			},
 		},
 		"origin": &spanContext{
-			trace:  &trace{spans: []*span{newBasicSpan("abc")}},
-			origin: "synthetics",
+			Trace:   &trace{spans: []*span{newBasicSpan("abc")}},
+			Oorigin: "synthetics",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			ctx := newSpanContext(s, parentCtx)
 			assert := assert.New(t)
-			assert.Equal(ctx.traceID, s.TraceID)
-			assert.Equal(ctx.spanID, s.SpanID)
-			if parentCtx.trace != nil {
-				assert.Equal(len(ctx.trace.spans), len(parentCtx.trace.spans))
+			assert.Equal(ctx.TtraceID, s.TraceID)
+			assert.Equal(ctx.SspanID, s.SpanID)
+			if parentCtx.Trace != nil {
+				assert.Equal(len(ctx.Trace.spans), len(parentCtx.Trace.spans))
 			}
-			assert.NotNil(ctx.trace)
-			assert.Contains(ctx.trace.spans, s)
-			if parentCtx.trace != nil {
-				assert.Equal(ctx.trace.priority, parentCtx.trace.priority)
-				assert.Equal(ctx.trace.samplingDecision, parentCtx.trace.samplingDecision)
+			assert.NotNil(ctx.Trace)
+			assert.Contains(ctx.Trace.spans, s)
+			if parentCtx.Trace != nil {
+				assert.Equal(ctx.Trace.priority, parentCtx.Trace.priority)
+				assert.Equal(ctx.Trace.samplingDecision, parentCtx.Trace.samplingDecision)
 			}
-			assert.Equal(parentCtx.baggage, ctx.baggage)
-			assert.Equal(parentCtx.origin, ctx.origin)
+			assert.Equal(parentCtx.Bbaggage, ctx.Bbaggage)
+			assert.Equal(parentCtx.Oorigin, ctx.Oorigin)
 		})
 	}
 }
@@ -383,14 +383,14 @@ func TestSpanContextBaggage(t *testing.T) {
 
 	var ctx spanContext
 	ctx.setBaggageItem("key", "value")
-	assert.Equal("value", ctx.baggage["key"])
+	assert.Equal("value", ctx.Bbaggage["key"])
 }
 
 func TestSpanContextIterator(t *testing.T) {
 	assert := assert.New(t)
 
 	got := make(map[string]string)
-	ctx := spanContext{baggage: map[string]string{"key": "value"}, hasBaggage: 1}
+	ctx := spanContext{Bbaggage: map[string]string{"key": "value"}, HhasBaggage: 1}
 	ctx.ForeachBaggageItem(func(k, v string) bool {
 		got[k] = v
 		return true
@@ -402,7 +402,7 @@ func TestSpanContextIterator(t *testing.T) {
 
 func TestSpanContextIteratorBreak(t *testing.T) {
 	got := make(map[string]string)
-	ctx := spanContext{baggage: map[string]string{"key": "value"}}
+	ctx := spanContext{Bbaggage: map[string]string{"key": "value"}}
 	ctx.ForeachBaggageItem(func(k, v string) bool {
 		return false
 	})
@@ -411,7 +411,7 @@ func TestSpanContextIteratorBreak(t *testing.T) {
 }
 
 func BenchmarkBaggageItemPresent(b *testing.B) {
-	ctx := spanContext{baggage: map[string]string{"key": "value"}, hasBaggage: 1}
+	ctx := spanContext{Bbaggage: map[string]string{"key": "value"}, HhasBaggage: 1}
 	for n := 0; n < b.N; n++ {
 		ctx.ForeachBaggageItem(func(k, v string) bool {
 			return true

@@ -421,11 +421,11 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 		log.Debug("parent not nil %s", opts.Parent.SpanID())
 		if ctx, ok := opts.Parent.(*spanContext); ok {
 			context = ctx
-			if pprofContext == nil && ctx.span != nil {
+			if pprofContext == nil && ctx.Span != nil {
 				// Inherit the context.Context from parent span if it was propagated
 				// using ChildOf() rather than StartSpanFromContext(), see
 				// applyPPROFLabels() below.
-				pprofContext = ctx.span.PpprofCtxActive
+				pprofContext = ctx.Span.PpprofCtxActive
 			}
 		}
 	}
@@ -458,22 +458,22 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 	}
 	if context != nil {
 		// this is a child span
-		span.TraceID = context.traceID
-		span.ParentID = context.spanID
+		span.TraceID = context.TtraceID
+		span.ParentID = context.SspanID
 		log.Debug("span context not nil %s", span.TraceID, span.ParentID)
 		if p, ok := context.samplingPriority(); ok {
 			span.setMetric(keySamplingPriority, float64(p))
 		}
-		if context.span != nil {
+		if context.Span != nil {
 			// local parent, inherit service
-			context.span.RLock()
-			span.Service = context.span.Service
-			context.span.RUnlock()
+			context.Span.RLock()
+			span.Service = context.Span.Service
+			context.Span.RUnlock()
 		} else {
 			// remote parent
-			if context.origin != "" {
+			if context.Oorigin != "" {
 				// mark origin
-				span.setMeta(keyOrigin, context.origin)
+				span.setMeta(keyOrigin, context.Oorigin)
 			}
 		}
 	}
@@ -495,7 +495,7 @@ func (t *tracer) StartSpan(operationName string, options ...ddtrace.StartSpanOpt
 			span.Service = newSvc
 		}
 	}
-	if context == nil || context.span == nil || context.span.Service != span.Service {
+	if context == nil || context.Span == nil || context.Span.Service != span.Service {
 		span.setMetric(keyTopLevel, 1)
 		// all top level spans are measured. So the measured tag is redundant.
 		delete(span.Metrics, keyMeasured)
@@ -618,7 +618,7 @@ func (t *tracer) sample(span *span) {
 	}
 	sampler := t.config.sampler
 	if !sampler.Sample(span) {
-		span.Ccontext.trace.drop()
+		span.Ccontext.Trace.drop()
 		return
 	}
 	if rs, ok := sampler.(RateSampler); ok && rs.Rate() < 1 {

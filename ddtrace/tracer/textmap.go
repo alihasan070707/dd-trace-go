@@ -285,20 +285,20 @@ func (p *propagator) Inject(spanCtx ddtrace.SpanContext, carrier interface{}) er
 
 func (p *propagator) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapWriter) error {
 	ctx, ok := spanCtx.(*spanContext)
-	if !ok || ctx.traceID == 0 || ctx.spanID == 0 {
+	if !ok || ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return ErrInvalidSpanContext
 	}
 	// propagate the TraceID and the current active SpanID
-	writer.Set(p.cfg.TraceHeader, strconv.FormatUint(ctx.traceID, 10))
-	writer.Set(p.cfg.ParentHeader, strconv.FormatUint(ctx.spanID, 10))
+	writer.Set(p.cfg.TraceHeader, strconv.FormatUint(ctx.TtraceID, 10))
+	writer.Set(p.cfg.ParentHeader, strconv.FormatUint(ctx.SspanID, 10))
 	if sp, ok := ctx.samplingPriority(); ok {
 		writer.Set(p.cfg.PriorityHeader, strconv.Itoa(sp))
 	}
-	if ctx.origin != "" {
-		writer.Set(originHeader, ctx.origin)
+	if ctx.Oorigin != "" {
+		writer.Set(originHeader, ctx.Oorigin)
 	}
 	// propagate OpenTracing baggage
-	for k, v := range ctx.baggage {
+	for k, v := range ctx.Bbaggage {
 		writer.Set(p.cfg.BaggagePrefix+k, v)
 	}
 	if p.cfg.MaxTagsHeaderLen <= 0 {
@@ -313,21 +313,21 @@ func (p *propagator) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapWr
 // marshalPropagatingTags marshals all propagating tags included in ctx to a comma separated string
 func (p *propagator) marshalPropagatingTags(ctx *spanContext) string {
 	var sb strings.Builder
-	if ctx.trace == nil {
+	if ctx.Trace == nil {
 		return ""
 	}
-	ctx.trace.mu.Lock()
-	defer ctx.trace.mu.Unlock()
-	for k, v := range ctx.trace.propagatingTags {
+	ctx.Trace.mu.Lock()
+	defer ctx.Trace.mu.Unlock()
+	for k, v := range ctx.Trace.propagatingTags {
 		if err := isValidPropagatableTag(k, v); err != nil {
 			log.Warn("Won't propagate tag '%s': %v", k, err.Error())
-			ctx.trace.setTag(keyPropagationError, "encoding_error")
+			ctx.Trace.setTag(keyPropagationError, "encoding_error")
 			continue
 		}
 		if sb.Len()+len(k)+len(v) > p.cfg.MaxTagsHeaderLen {
 			sb.Reset()
 			log.Warn("Won't propagate tag: maximum trace tags header len (%d) reached.", p.cfg.MaxTagsHeaderLen)
-			ctx.trace.setTag(keyPropagationError, "inject_max_size")
+			ctx.Trace.setTag(keyPropagationError, "inject_max_size")
 			break
 		}
 		if sb.Len() > 0 {
@@ -356,12 +356,12 @@ func (p *propagator) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 		key := strings.ToLower(k)
 		switch key {
 		case p.cfg.TraceHeader:
-			ctx.traceID, err = parseUint64(v)
+			ctx.TtraceID, err = parseUint64(v)
 			if err != nil {
 				return ErrSpanContextCorrupted
 			}
 		case p.cfg.ParentHeader:
-			ctx.spanID, err = parseUint64(v)
+			ctx.SspanID, err = parseUint64(v)
 			if err != nil {
 				return ErrSpanContextCorrupted
 			}
@@ -372,7 +372,7 @@ func (p *propagator) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 			}
 			ctx.setSamplingPriority(priority, samplernames.Unknown)
 		case originHeader:
-			ctx.origin = v
+			ctx.Oorigin = v
 		case traceTagsHeader:
 			unmarshalPropagatingTags(&ctx, v)
 		default:
@@ -385,7 +385,7 @@ func (p *propagator) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 	if err != nil {
 		return nil, err
 	}
-	if ctx.traceID == 0 || (ctx.spanID == 0 && ctx.origin != "synthetics") {
+	if ctx.TtraceID == 0 || (ctx.SspanID == 0 && ctx.Oorigin != "synthetics") {
 		return nil, ErrSpanContextNotFound
 	}
 	return &ctx, nil
@@ -393,32 +393,32 @@ func (p *propagator) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 
 // unmarshalPropagatingTags unmarshals tags from v into ctx
 func unmarshalPropagatingTags(ctx *spanContext, v string) {
-	if ctx.trace == nil {
-		ctx.trace = newTrace()
+	if ctx.Trace == nil {
+		ctx.Trace = newTrace()
 	}
-	ctx.trace.mu.Lock()
-	defer ctx.trace.mu.Unlock()
+	ctx.Trace.mu.Lock()
+	defer ctx.Trace.mu.Unlock()
 	if len(v) > propagationExtractMaxSize {
 		log.Warn("Did not extract %s, size limit exceeded: %d. Incoming tags will not be propagated further.", traceTagsHeader, propagationExtractMaxSize)
-		ctx.trace.setTag(keyPropagationError, "extract_max_size")
+		ctx.Trace.setTag(keyPropagationError, "extract_max_size")
 		return
 	}
 	var err error
-	ctx.trace.propagatingTags, err = parsePropagatableTraceTags(v)
+	ctx.Trace.propagatingTags, err = parsePropagatableTraceTags(v)
 	if err != nil {
 		log.Warn("Did not extract %s: %v. Incoming tags will not be propagated further.", traceTagsHeader, err.Error())
-		ctx.trace.setTag(keyPropagationError, "decoding_error")
+		ctx.Trace.setTag(keyPropagationError, "decoding_error")
 	}
 }
 
 // setPropagatingTag adds the key value pair to the map of propagating tags on the trace,
 // creating the map if one is not initialized.
 func setPropagatingTag(ctx *spanContext, k, v string) {
-	if ctx.trace == nil {
+	if ctx.Trace == nil {
 		// extractors initialize a new spanContext, so the trace might be nil
-		ctx.trace = newTrace()
+		ctx.Trace = newTrace()
 	}
-	ctx.trace.setPropagatingTag(k, v)
+	ctx.Trace.setPropagatingTag(k, v)
 }
 
 const (
@@ -443,11 +443,11 @@ func (p *propagatorB3) Inject(spanCtx ddtrace.SpanContext, carrier interface{}) 
 
 func (*propagatorB3) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapWriter) error {
 	ctx, ok := spanCtx.(*spanContext)
-	if !ok || ctx.traceID == 0 || ctx.spanID == 0 {
+	if !ok || ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return ErrInvalidSpanContext
 	}
-	writer.Set(b3TraceIDHeader, fmt.Sprintf("%016x", ctx.traceID))
-	writer.Set(b3SpanIDHeader, fmt.Sprintf("%016x", ctx.spanID))
+	writer.Set(b3TraceIDHeader, fmt.Sprintf("%016x", ctx.TtraceID))
+	writer.Set(b3SpanIDHeader, fmt.Sprintf("%016x", ctx.SspanID))
 	if p, ok := ctx.samplingPriority(); ok {
 		if p >= ext.PriorityAutoKeep {
 			writer.Set(b3SampledHeader, "1")
@@ -477,12 +477,12 @@ func (*propagatorB3) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 			if len(v) > 16 {
 				v = v[len(v)-16:]
 			}
-			ctx.traceID, err = strconv.ParseUint(v, 16, 64)
+			ctx.TtraceID, err = strconv.ParseUint(v, 16, 64)
 			if err != nil {
 				return ErrSpanContextCorrupted
 			}
 		case b3SpanIDHeader:
-			ctx.spanID, err = strconv.ParseUint(v, 16, 64)
+			ctx.SspanID, err = strconv.ParseUint(v, 16, 64)
 			if err != nil {
 				return ErrSpanContextCorrupted
 			}
@@ -499,7 +499,7 @@ func (*propagatorB3) extractTextMap(reader TextMapReader) (ddtrace.SpanContext, 
 	if err != nil {
 		return nil, err
 	}
-	if ctx.traceID == 0 || ctx.spanID == 0 {
+	if ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return nil, ErrSpanContextNotFound
 	}
 	return &ctx, nil
@@ -520,11 +520,11 @@ func (p *propagatorB3SingleHeader) Inject(spanCtx ddtrace.SpanContext, carrier i
 
 func (*propagatorB3SingleHeader) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapWriter) error {
 	ctx, ok := spanCtx.(*spanContext)
-	if !ok || ctx.traceID == 0 || ctx.spanID == 0 {
+	if !ok || ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return ErrInvalidSpanContext
 	}
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%016x-%016x", ctx.traceID, ctx.spanID))
+	sb.WriteString(fmt.Sprintf("%016x-%016x", ctx.TtraceID, ctx.SspanID))
 	if p, ok := ctx.samplingPriority(); ok {
 		if p >= ext.PriorityAutoKeep {
 			sb.WriteString("-1")
@@ -557,11 +557,11 @@ func (*propagatorB3SingleHeader) extractTextMap(reader TextMapReader) (ddtrace.S
 				if len(b3Parts[0]) > 16 {
 					b3Parts[0] = b3Parts[0][len(b3Parts[0])-16:]
 				}
-				ctx.traceID, err = strconv.ParseUint(b3Parts[0], 16, 64)
+				ctx.TtraceID, err = strconv.ParseUint(b3Parts[0], 16, 64)
 				if err != nil {
 					return ErrSpanContextCorrupted
 				}
-				ctx.spanID, err = strconv.ParseUint(b3Parts[1], 16, 64)
+				ctx.SspanID, err = strconv.ParseUint(b3Parts[1], 16, 64)
 				if err != nil {
 					return ErrSpanContextCorrupted
 				}
@@ -587,7 +587,7 @@ func (*propagatorB3SingleHeader) extractTextMap(reader TextMapReader) (ddtrace.S
 	if err != nil {
 		return nil, err
 	}
-	if ctx.traceID == 0 || ctx.spanID == 0 {
+	if ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return nil, ErrSpanContextNotFound
 	}
 	return &ctx, nil
@@ -622,7 +622,7 @@ func (p *propagatorW3c) Inject(spanCtx ddtrace.SpanContext, carrier interface{})
 // where each list-member is managed by a vendor or instrumentation library.
 func (*propagatorW3c) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapWriter) error {
 	ctx, ok := spanCtx.(*spanContext)
-	if !ok || ctx.traceID == 0 || ctx.spanID == 0 {
+	if !ok || ctx.TtraceID == 0 || ctx.SspanID == 0 {
 		return ErrInvalidSpanContext
 	}
 	flags := ""
@@ -635,8 +635,8 @@ func (*propagatorW3c) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapW
 
 	var traceID string
 	// if previous traceparent is valid, do NOT update the trace ID
-	if ctx.trace != nil && ctx.trace.propagatingTags != nil {
-		tag := ctx.trace.propagatingTags[w3cTraceIDTag]
+	if ctx.Trace != nil && ctx.Trace.propagatingTags != nil {
+		tag := ctx.Trace.propagatingTags[w3cTraceIDTag]
 		if len(tag) == 32 {
 			id, err := strconv.ParseUint(tag[16:], 16, 64)
 			if err == nil && id != 0 {
@@ -645,18 +645,18 @@ func (*propagatorW3c) injectTextMap(spanCtx ddtrace.SpanContext, writer TextMapW
 		}
 	}
 	if len(traceID) == 0 {
-		traceID = fmt.Sprintf("%032x", ctx.traceID)
+		traceID = fmt.Sprintf("%032x", ctx.TtraceID)
 	}
-	writer.Set(traceparentHeader, fmt.Sprintf("00-%s-%016x-%v", traceID, ctx.spanID, flags))
+	writer.Set(traceparentHeader, fmt.Sprintf("00-%s-%016x-%v", traceID, ctx.SspanID, flags))
 	// if context priority / origin / tags were updated after extraction,
 	// or the tracestateHeader doesn't start with `dd=`
 	// we need to recreate tracestate
-	if ctx.updated ||
-		(ctx.trace != nil && ctx.trace.propagatingTags != nil && !strings.HasPrefix(ctx.trace.propagatingTags[tracestateHeader], "dd=")) ||
-		len(ctx.trace.propagatingTags[tracestateHeader]) == 0 {
-		writer.Set(tracestateHeader, composeTracestate(ctx, p, ctx.trace.propagatingTags[tracestateHeader]))
+	if ctx.Updated ||
+		(ctx.Trace != nil && ctx.Trace.propagatingTags != nil && !strings.HasPrefix(ctx.Trace.propagatingTags[tracestateHeader], "dd=")) ||
+		len(ctx.Trace.propagatingTags[tracestateHeader]) == 0 {
+		writer.Set(tracestateHeader, composeTracestate(ctx, p, ctx.Trace.propagatingTags[tracestateHeader]))
 	} else {
-		writer.Set(tracestateHeader, ctx.trace.propagatingTags[tracestateHeader])
+		writer.Set(tracestateHeader, ctx.Trace.propagatingTags[tracestateHeader])
 	}
 	return nil
 }
@@ -698,13 +698,13 @@ func composeTracestate(ctx *spanContext, priority int, oldState string) string {
 	b.WriteString(fmt.Sprintf("dd=s:%d", priority))
 	listLength := 1
 
-	if ctx.origin != "" {
-		oWithSub := originRgx.ReplaceAllString(ctx.origin, "_")
+	if ctx.Oorigin != "" {
+		oWithSub := originRgx.ReplaceAllString(ctx.Oorigin, "_")
 		b.WriteString(fmt.Sprintf(";o:%s",
 			strings.ReplaceAll(oWithSub, "=", "~")))
 	}
 
-	for k, v := range ctx.trace.propagatingTags {
+	for k, v := range ctx.Trace.propagatingTags {
 		if !strings.HasPrefix(k, "_dd.p.") {
 			continue
 		}
@@ -832,10 +832,10 @@ func parseTraceparent(ctx *spanContext, header string) error {
 	if ok, err := regexp.MatchString("^[a-f0-9]+$", fullTraceID); !ok || err != nil {
 		return ErrSpanContextCorrupted
 	}
-	if ctx.traceID, err = strconv.ParseUint(fullTraceID[16:], 16, 64); err != nil {
+	if ctx.TtraceID, err = strconv.ParseUint(fullTraceID[16:], 16, 64); err != nil {
 		return ErrSpanContextCorrupted
 	}
-	if ctx.traceID == 0 {
+	if ctx.TtraceID == 0 {
 		if strings.Trim(fullTraceID[:16], "0") == "" {
 			return ErrSpanContextNotFound
 		}
@@ -850,10 +850,10 @@ func parseTraceparent(ctx *spanContext, header string) error {
 	if ok, err := regexp.MatchString("[a-f0-9]+", spanID); !ok || err != nil {
 		return ErrSpanContextCorrupted
 	}
-	if ctx.spanID, err = strconv.ParseUint(spanID, 16, 64); err != nil {
+	if ctx.SspanID, err = strconv.ParseUint(spanID, 16, 64); err != nil {
 		return ErrSpanContextCorrupted
 	}
-	if ctx.spanID == 0 {
+	if ctx.SspanID == 0 {
 		return ErrSpanContextNotFound
 	}
 	// parsing flags
@@ -890,7 +890,7 @@ func parseTracestate(ctx *spanContext, header string) error {
 			}
 			k, v := x[0], x[1]
 			if k == "o" {
-				ctx.origin = strings.ReplaceAll(v, "~", "=")
+				ctx.Oorigin = strings.ReplaceAll(v, "~", "=")
 			} else if k == "s" {
 				p, err := strconv.Atoi(v)
 				if err != nil {

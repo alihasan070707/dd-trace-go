@@ -185,10 +185,10 @@ func (s *span) root() *span {
 	if s == nil || s.Ccontext == nil {
 		return nil
 	}
-	if s.Ccontext.trace == nil {
+	if s.Ccontext.Trace == nil {
 		return nil
 	}
-	return s.Ccontext.trace.root
+	return s.Ccontext.Trace.root
 }
 
 // SetUser associates user information to the current trace which the
@@ -202,7 +202,7 @@ func (s *span) SetUser(id string, opts ...UserMonitoringOption) {
 		fn(&cfg)
 	}
 	root := s.root()
-	trace := root.Ccontext.trace
+	trace := root.Ccontext.Trace
 	root.Lock()
 	defer root.Unlock()
 	// We don't lock spans when flushing, so we could have a data race when
@@ -216,12 +216,12 @@ func (s *span) SetUser(id string, opts ...UserMonitoringOption) {
 		delete(root.Meta, keyUserID)
 		idenc := base64.StdEncoding.EncodeToString([]byte(id))
 		trace.setPropagatingTag(keyPropagatedUserID, idenc)
-		s.Ccontext.updated = true
+		s.Ccontext.Updated = true
 	} else {
 		// Unset the propagated user ID so that a propagated user ID coming from upstream won't be propagated anymore.
 		trace.unsetPropagatingTag(keyPropagatedUserID)
 		if _, ok := trace.propagatingTags[keyPropagatedUserID]; ok {
-			s.Ccontext.updated = true
+			s.Ccontext.Updated = true
 		}
 		delete(root.Meta, keyPropagatedUserID)
 	}
@@ -260,13 +260,13 @@ func (s *span) setTagError(value interface{}, cfg errorConfig) {
 		if yes {
 			if s.Error == 0 {
 				// new error
-				atomic.AddInt32(&s.Ccontext.errors, 1)
+				atomic.AddInt32(&s.Ccontext.Errors, 1)
 			}
 			s.Error = 1
 		} else {
 			if s.Error > 0 {
 				// flip from active to inactive
-				atomic.AddInt32(&s.Ccontext.errors, -1)
+				atomic.AddInt32(&s.Ccontext.Errors, -1)
 			}
 			s.Error = 0
 		}
@@ -495,7 +495,7 @@ func (s *span) finish(finishTime int64) {
 	if keep {
 		// a single kept span keeps the whole trace.
 		log.Debug("keeping span %d", s.SpanID)
-		s.Ccontext.trace.keep()
+		s.Ccontext.Trace.keep()
 	}
 
 	if log.DebugEnabled() {
@@ -570,7 +570,7 @@ func shouldKeep(s *span) bool {
 		// positive sampling priorities stay
 		return true
 	}
-	if atomic.LoadInt32(&s.Ccontext.errors) > 0 {
+	if atomic.LoadInt32(&s.Ccontext.Errors) > 0 {
 		// traces with any span containing an error get kept
 		return true
 	}

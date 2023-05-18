@@ -24,23 +24,23 @@ var _ ddtrace.SpanContext = (*spanContext)(nil)
 // spawn a direct descendant of the span that it belongs to. It can be used
 // to create distributed tracing by propagating it using the provided interfaces.
 type spanContext struct {
-	updated bool // updated is tracking changes for priority / origin / x-datadog-tags
+	Updated bool // updated is tracking changes for priority / origin / x-datadog-tags
 
 	// the below group should propagate only locally
 
-	trace  *trace // reference to the trace that this span belongs too
-	span   *span  // reference to the span that hosts this context
-	errors int32  // number of spans with errors in this trace
+	Trace  *trace // reference to the trace that this span belongs too
+	Span   *span  // reference to the span that hosts this context
+	Errors int32  // number of spans with errors in this trace
 
 	// the below group should propagate cross-process
 
-	traceID uint64
-	spanID  uint64
+	TtraceID uint64
+	SspanID  uint64
 
-	mu         sync.RWMutex // guards below fields
-	baggage    map[string]string
-	hasBaggage uint32 // atomic int for quick checking presence of baggage. 0 indicates no baggage, otherwise baggage exists.
-	origin     string // e.g. "synthetics"
+	mu          sync.RWMutex // guards below fields
+	Bbaggage    map[string]string
+	HhasBaggage uint32 // atomic int for quick checking presence of baggage. 0 indicates no baggage, otherwise baggage exists.
+	Oorigin     string // e.g. "synthetics"
 }
 
 // newSpanContext creates a new SpanContext to serve as context for the given
@@ -50,54 +50,54 @@ type spanContext struct {
 // for the same span.
 func newSpanContext(span *span, parent *spanContext) *spanContext {
 	context := &spanContext{
-		traceID: span.TraceID,
-		spanID:  span.SpanID,
-		span:    span,
+		TtraceID: span.TraceID,
+		SspanID:  span.SpanID,
+		Span:     span,
 	}
 	if parent != nil {
 		log.Debug("newSpanContext parent is nil")
 
-		context.trace = parent.trace
-		context.origin = parent.origin
-		context.errors = parent.errors
+		context.Trace = parent.Trace
+		context.Oorigin = parent.Oorigin
+		context.Errors = parent.Errors
 		parent.ForeachBaggageItem(func(k, v string) bool {
 			context.setBaggageItem(k, v)
 			return true
 		})
 	}
-	if context.trace == nil {
+	if context.Trace == nil {
 		log.Debug("newSpanContext context trace is nil")
-		context.trace = newTrace()
+		context.Trace = newTrace()
 	}
-	if context.trace.root == nil {
+	if context.Trace.root == nil {
 		log.Debug("newSpanContext context.trace.root trace is nil")
 
 		// first span in the trace can safely be assumed to be the root
-		context.trace.root = span
+		context.Trace.root = span
 	}
 	// put span in context's trace
-	context.trace.push(span)
+	context.Trace.push(span)
 	// setting context.updated to false here is necessary to distinguish
 	// between initializing properties of the span (priority)
 	// and updating them after extracting context through propagators
-	context.updated = false
+	context.Updated = false
 	return context
 }
 
 // SpanID implements ddtrace.SpanContext.
-func (c *spanContext) SpanID() uint64 { return c.spanID }
+func (c *spanContext) SpanID() uint64 { return c.SspanID }
 
 // TraceID implements ddtrace.SpanContext.
-func (c *spanContext) TraceID() uint64 { return c.traceID }
+func (c *spanContext) TraceID() uint64 { return c.TtraceID }
 
 // ForeachBaggageItem implements ddtrace.SpanContext.
 func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
-	if atomic.LoadUint32(&c.hasBaggage) == 0 {
+	if atomic.LoadUint32(&c.HhasBaggage) == 0 {
 		return
 	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	for k, v := range c.baggage {
+	for k, v := range c.Bbaggage {
 		if !handler(k, v) {
 			break
 		}
@@ -105,50 +105,50 @@ func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 }
 
 func (c *spanContext) setSamplingPriority(p int, sampler samplernames.SamplerName) {
-	if c.trace == nil {
-		c.trace = newTrace()
+	if c.Trace == nil {
+		c.Trace = newTrace()
 	}
-	if c.trace.priority != nil && *c.trace.priority != float64(p) {
-		c.updated = true
+	if c.Trace.priority != nil && *c.Trace.priority != float64(p) {
+		c.Updated = true
 	}
-	c.trace.setSamplingPriority(p, sampler)
+	c.Trace.setSamplingPriority(p, sampler)
 }
 
 func (c *spanContext) samplingPriority() (p int, ok bool) {
-	if c.trace == nil {
+	if c.Trace == nil {
 		return 0, false
 	}
-	return c.trace.samplingPriority()
+	return c.Trace.samplingPriority()
 }
 
 func (c *spanContext) setBaggageItem(key, val string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.baggage == nil {
-		atomic.StoreUint32(&c.hasBaggage, 1)
-		c.baggage = make(map[string]string, 1)
+	if c.Bbaggage == nil {
+		atomic.StoreUint32(&c.HhasBaggage, 1)
+		c.Bbaggage = make(map[string]string, 1)
 	}
-	c.baggage[key] = val
+	c.Bbaggage[key] = val
 }
 
 func (c *spanContext) baggageItem(key string) string {
-	if atomic.LoadUint32(&c.hasBaggage) == 0 {
+	if atomic.LoadUint32(&c.HhasBaggage) == 0 {
 		return ""
 	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.baggage[key]
+	return c.Bbaggage[key]
 }
 
 func (c *spanContext) meta(key string) (val string, ok bool) {
-	c.span.RLock()
-	defer c.span.RUnlock()
-	val, ok = c.span.Meta[key]
+	c.Span.RLock()
+	defer c.Span.RUnlock()
+	val, ok = c.Span.Meta[key]
 	return val, ok
 }
 
 // finish marks this span as finished in the trace.
-func (c *spanContext) finish() { c.trace.finishedOne(c.span) }
+func (c *spanContext) finish() { c.Trace.finishedOne(c.Span) }
 
 // samplingDecision is the decision to send a trace to the agent or not.
 type samplingDecision uint32
